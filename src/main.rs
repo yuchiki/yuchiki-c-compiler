@@ -1,8 +1,9 @@
 mod lex;
-use lex::{PositionedToken, SourcePosition, Token};
+use lex::{PositionedToken, Token};
 
 struct ParserState<'a> {
     tokens: &'a [PositionedToken],
+    raw_input: &'a str,
 }
 
 impl<'a> ParserState<'a> {
@@ -51,11 +52,21 @@ impl<'a> ParserState<'a> {
                 self.advance(1);
                 Expr::Num(*num)
             }
-            [(_, pos), ..] => {
-                panic!("parse error at {:?}", pos);
+            [(token, pos), ..] => {
+                self.error(&format!("expected primary but got {:?}", token), *pos);
             }
             [] => panic!("tokens are empty."),
         }
+    }
+
+    fn error(&self, error_message: &str, pos: lex::SourcePosition) -> ! {
+        eprintln!(
+            "{input}\n{:width$}^{error_message}",
+            "",
+            width = pos.0,
+            input = self.raw_input
+        );
+        panic!("compile error")
     }
 }
 
@@ -74,7 +85,10 @@ fn main() {
     let tokens = lex::tokenize(&input);
     let tokens = &tokens[..];
 
-    let mut parser_state = ParserState { tokens };
+    let mut parser_state = ParserState {
+        tokens,
+        raw_input: &raw_input,
+    };
 
     let expr = parser_state.munch_expr();
     if !parser_state.tokens.is_empty() {
@@ -89,11 +103,6 @@ fn main() {
 
     println!("  pop rax");
     println!("  ret");
-}
-
-fn error(error_message: &str, pos: lex::SourcePosition, input: &str) -> ! {
-    eprintln!("{input}\n{:width$}^{error_message}", "", width = pos.0);
-    panic!("compile error")
 }
 
 fn gen_expr(expr: Expr) {
