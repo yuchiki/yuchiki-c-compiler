@@ -1,3 +1,9 @@
+enum Token {
+    Num(i32),
+    Plus,
+    Minus,
+}
+
 fn main() {
     let input = std::env::args()
         .nth(1)
@@ -5,26 +11,26 @@ fn main() {
         .chars()
         .collect::<Vec<_>>();
 
+    let tokens = tokenize(&input);
+    let tokens = &tokens[..];
+
     println!(".intel_syntax noprefix");
     println!(".globl main");
     println!("main:");
 
-    if let (mut input, Some(num)) = munch_int(&input) {
+    if let [Token::Num(num), tokens @ ..] = tokens {
         println!("  mov rax, {num}");
 
-        while !input.is_empty() {
-            match input {
-                ['+', rest @ ..] => {
-                    if let (new_input, Some(num)) = munch_int(rest) {
-                        println!("  add rax, {num}");
-                        input = new_input;
-                    }
+        let mut tokens = tokens;
+        while !tokens.is_empty() {
+            match tokens {
+                [Token::Plus, Token::Num(num), rest @ ..] => {
+                    println!("  add rax, {num}");
+                    tokens = rest;
                 }
-                ['-', rest @ ..] => {
-                    if let (new_input, Some(num)) = munch_int(rest) {
-                        println!("  sub rax, {num}");
-                        input = new_input;
-                    }
+                [Token::Minus, Token::Num(num), rest @ ..] => {
+                    println!("  sub rax, {num}");
+                    tokens = rest;
                 }
                 _ => {
                     panic!("予期しない文字です。");
@@ -36,6 +42,33 @@ fn main() {
     }
 
     println!("  ret");
+}
+
+fn tokenize(mut input: &[char]) -> Vec<Token> {
+    let mut ans = vec![];
+    while !input.is_empty() {
+        match input {
+            ['+', rest @ ..] => {
+                ans.push(Token::Plus);
+                input = rest;
+            }
+            ['-', rest @ ..] => {
+                ans.push(Token::Minus);
+                input = rest;
+            }
+            ['0'..='9', ..] => {
+                if let (rest, Some(num)) = munch_int(input) {
+                    ans.push(Token::Num(num));
+                    input = rest;
+                }
+            }
+            _ => {
+                panic!("予期しない文字です。");
+            }
+        }
+    }
+
+    ans
 }
 
 fn munch_int(mut input: &[char]) -> (&[char], Option<i32>) {
