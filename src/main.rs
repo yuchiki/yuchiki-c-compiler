@@ -1,6 +1,64 @@
 mod lex;
 use lex::{PositionedToken, SourcePosition, Token};
 
+struct ParserState<'a> {
+    tokens: &'a [PositionedToken],
+}
+
+impl<'a> ParserState<'a> {
+    fn advance(&mut self, offset: usize) {
+        self.tokens = &self.tokens[offset..]
+    }
+
+    fn munch_expr(&mut self) -> Expr {
+        let mut expr = self.munch_mul();
+
+        loop {
+            match self.tokens {
+                [(Token::Plus, _), ..] => {
+                    self.advance(1);
+                    let rhs = self.munch_mul();
+                    expr = Expr::Add(Box::new(expr), Box::new(rhs));
+                }
+                [(Token::Minus, _), ..] => {
+                    self.advance(1);
+                    let rhs = self.munch_mul();
+                    expr = Expr::Sub(Box::new(expr), Box::new(rhs));
+                }
+                _ => return expr,
+            }
+        }
+    }
+
+    fn munch_mul(&mut self) -> Expr {
+        let mut expr = self.munch_primary();
+
+        loop {
+            match self.tokens {
+                [(Token::Asterisk, _), ..] => {
+                    self.advance(1);
+                    let rhs = self.munch_primary();
+                    expr = Expr::Mul(Box::new(expr), Box::new(rhs));
+                }
+                _ => return expr,
+            }
+        }
+    }
+
+    fn munch_primary(&mut self) -> Expr {
+        match self.tokens {
+            [(Token::Num(num), _), ..] => {
+                self.advance(1);
+                Expr::Num(*num)
+            }
+            [(_, pos), ..] => {
+                panic!("parse error at {:?}", pos);
+            }
+            [] => panic!("tokens are empty."),
+        }
+    }
+}
+
 #[derive(Debug)]
 enum Expr {
     Add(Box<Expr>, Box<Expr>),
@@ -16,8 +74,10 @@ fn main() {
     let tokens = lex::tokenize(&input);
     let tokens = &tokens[..];
 
-    let (expr, tokens) = munch_expr(tokens);
-    if !tokens.is_empty() {
+    let mut parser_state = ParserState { tokens };
+
+    let expr = parser_state.munch_expr();
+    if !parser_state.tokens.is_empty() {
         panic!("parseした後にtokensがあまっている");
     }
 
@@ -34,51 +94,6 @@ fn main() {
 fn error(error_message: &str, pos: lex::SourcePosition, input: &str) -> ! {
     eprintln!("{input}\n{:width$}^{error_message}", "", width = pos.0);
     panic!("compile error")
-}
-
-fn munch_expr(tokens: &[PositionedToken]) -> (Expr, &[PositionedToken]) {
-    let (mut expr, mut tokens) = munch_mul(tokens);
-
-    loop {
-        match tokens {
-            [(Token::Plus, _), rest @ ..] => {
-                let (rhs, new_tokens) = munch_mul(rest);
-                expr = Expr::Add(Box::new(expr), Box::new(rhs));
-                tokens = new_tokens;
-            }
-            [(Token::Minus, _), rest @ ..] => {
-                let (rhs, new_tokens) = munch_mul(rest);
-                expr = Expr::Sub(Box::new(expr), Box::new(rhs));
-                tokens = new_tokens;
-            }
-            _ => return (expr, tokens),
-        }
-    }
-}
-
-fn munch_mul(tokens: &[PositionedToken]) -> (Expr, &[PositionedToken]) {
-    let (mut expr, mut tokens) = munch_primary(tokens);
-
-    loop {
-        match tokens {
-            [(Token::Asterisk, _), rest @ ..] => {
-                let (rhs, new_tokens) = munch_primary(rest);
-                expr = Expr::Mul(Box::new(expr), Box::new(rhs));
-                tokens = new_tokens;
-            }
-            _ => return (expr, tokens),
-        }
-    }
-}
-
-fn munch_primary(tokens: &[PositionedToken]) -> (Expr, &[PositionedToken]) {
-    match tokens {
-        [(Token::Num(num), _), rest @ ..] => (Expr::Num(*num), rest),
-        [(_, pos), ..] => {
-            panic!("parse error at {:?}", pos);
-        }
-        [] => panic!("tokens are empty."),
-    }
 }
 
 fn gen_expr(expr: Expr) {
