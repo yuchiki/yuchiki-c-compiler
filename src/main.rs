@@ -1,9 +1,22 @@
-type SourcePosition = usize;
+#[derive(Debug, Copy, Clone)]
+struct SourcePosition(pub usize);
 
+type PositionedToken = (Token, SourcePosition);
+
+#[derive(Debug)]
 enum Token {
     Num(i32),
     Plus,
     Minus,
+    Asterisk,
+}
+
+#[derive(Debug)]
+enum Expr {
+    Add(Box<Expr>, Box<Expr>),
+    Sub(Box<Expr>, Box<Expr>),
+    Mul(Box<Expr>, Box<Expr>),
+    Num(i32),
 }
 
 fn main() {
@@ -13,67 +26,52 @@ fn main() {
     let tokens = tokenize(&input);
     let tokens = &tokens[..];
 
+    let (expr, tokens) = munch_expr(tokens);
+    if !tokens.is_empty() {
+        panic!("parseした後にtokensがあまっている");
+    }
+
     println!(".intel_syntax noprefix");
     println!(".globl main");
     println!("main:");
 
-    match tokens {
-        [(Token::Num(num), _), tokens @ ..] => {
-            println!("  mov rax, {num}");
+    gen_expr(expr);
 
-            let mut tokens = tokens;
-            loop {
-                match tokens {
-                    [(Token::Plus, _), (Token::Num(num), _), rest @ ..] => {
-                        println!("  add rax, {num}");
-                        tokens = rest;
-                    }
-                    [(Token::Minus, _), (Token::Num(num), _), rest @ ..] => {
-                        println!("  sub rax, {num}");
-                        tokens = rest;
-                    }
-                    [(_, pos), ..] => {
-                        error("予期しない文字です。", *pos, &raw_input);
-                    }
-                    [] => break,
-                }
-            }
-        }
-        [(_, pos), ..] => {
-            error("数から始まっていない", *pos, &raw_input);
-        }
-        [] => panic!("no tokens"),
-    }
-
+    println!("  pop rax");
     println!("  ret");
 }
 
 fn error(error_message: &str, pos: SourcePosition, input: &str) -> ! {
-    eprintln!("{input}\n{:pos$}^{error_message}", "");
+    eprintln!("{input}\n{:width$}^{error_message}", "", width = pos.0);
     panic!("compile error")
 }
 
-fn tokenize(mut input: &[char]) -> Vec<(Token, SourcePosition)> {
+fn tokenize(mut input: &[char]) -> Vec<PositionedToken> {
     let mut ans = vec![];
-    let mut pos: SourcePosition = 0;
+    let mut pos = SourcePosition(0);
 
     while !input.is_empty() {
         match input {
             ['+', rest @ ..] => {
                 ans.push((Token::Plus, pos));
                 input = rest;
-                pos += 1;
+                pos.0 += 1;
             }
             ['-', rest @ ..] => {
                 ans.push((Token::Minus, pos));
                 input = rest;
-                pos += 1;
+                pos.0 += 1;
+            }
+            ['*', rest @ ..] => {
+                ans.push((Token::Asterisk, pos));
+                input = rest;
+                pos.0 += 1;
             }
             ['0'..='9', ..] => {
                 if let (rest, Some(num), char_count) = munch_int(input) {
                     ans.push((Token::Num(num), pos));
                     input = rest;
-                    pos += char_count;
+                    pos.0 += char_count;
                 }
             }
             _ => {
@@ -102,12 +100,86 @@ fn munch_int(mut input: &[char]) -> (&[char], Option<i32>, usize) {
     }
 }
 
-#[test]
-fn test_munch_int() {
-    assert_eq!(munch_int(&['0', 'a'][..]), (&['a'][..], Some(0)));
-    assert_eq!(
-        munch_int(&['3', '5', '4', 'a', 'b', 'c'][..]),
-        (&['a', 'b', 'c'][..], Some(354))
-    );
-    assert_eq!(munch_int(&['a', 'b'][..]), (&['a', 'b'][..], None));
+fn munch_expr(tokens: &[PositionedToken]) -> (Expr, &[PositionedToken]) {
+    let (mut expr, mut tokens) = munch_mul(tokens);
+
+    loop {
+        match tokens {
+            [(Token::Plus, _), rest @ ..] => {
+                let (rhs, new_tokens) = munch_mul(rest);
+                expr = Expr::Add(Box::new(expr), Box::new(rhs));
+                tokens = new_tokens;
+            }
+            [(Token::Minus, _), rest @ ..] => {
+                let (rhs, new_tokens) = munch_mul(rest);
+                expr = Expr::Sub(Box::new(expr), Box::new(rhs));
+                tokens = new_tokens;
+            }
+            _ => return (expr, tokens),
+        }
+    }
+}
+
+fn munch_mul(tokens: &[PositionedToken]) -> (Expr, &[PositionedToken]) {
+    let (mut expr, mut tokens) = munch_primary(tokens);
+
+    loop {
+        match tokens {
+            [(Token::Asterisk, _), rest @ ..] => {
+                let (rhs, new_tokens) = munch_primary(rest);
+                expr = Expr::Mul(Box::new(expr), Box::new(rhs));
+                tokens = new_tokens;
+            }
+            _ => return (expr, tokens),
+        }
+    }
+}
+
+fn munch_primary(tokens: &[PositionedToken]) -> (Expr, &[PositionedToken]) {
+    match tokens {
+        [(Token::Num(num), _), rest @ ..] => (Expr::Num(*num), rest),
+        [(_, pos), ..] => {
+            panic!("parse error at {:?}", pos);
+        }
+        [] => panic!("tokens are empty."),
+    }
+}
+
+fn gen_expr(expr: Expr) {
+    match expr {
+        Expr::Num(n) => {
+            println!("  push {n}");
+        }
+        Expr::Add(lhs, rhs) => {
+            gen_expr(*lhs);
+            gen_expr(*rhs);
+
+            println!("  pop rdi");
+            println!("  pop rax");
+
+            println!("  add rax, rdi");
+            println!("  push rax");
+        }
+
+        Expr::Sub(lhs, rhs) => {
+            gen_expr(*lhs);
+            gen_expr(*rhs);
+
+            println!("  pop rdi");
+            println!("  pop rax");
+
+            println!("  sub rax, rdi");
+            println!("  push rax");
+        }
+        Expr::Mul(lhs, rhs) => {
+            gen_expr(*lhs);
+            gen_expr(*rhs);
+
+            println!("  pop rdi");
+            println!("  pop rax");
+
+            println!("  imul rax, rdi");
+            println!("  push rax");
+        }
+    }
 }
