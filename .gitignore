@@ -1,1 +1,3 @@
 /target
+tmpdir/*
+!tmpdir/.gitkeep
