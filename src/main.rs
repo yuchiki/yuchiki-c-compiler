@@ -7,11 +7,8 @@ enum Token {
 }
 
 fn main() {
-    let input = std::env::args()
-        .nth(1)
-        .expect("no arguments")
-        .chars()
-        .collect::<Vec<_>>();
+    let raw_input = std::env::args().nth(1).expect("no arguments");
+    let input = raw_input.chars().collect::<Vec<_>>();
 
     let tokens = tokenize(&input);
     let tokens = &tokens[..];
@@ -20,30 +17,40 @@ fn main() {
     println!(".globl main");
     println!("main:");
 
-    if let [(Token::Num(num), _), tokens @ ..] = tokens {
-        println!("  mov rax, {num}");
+    match tokens {
+        [(Token::Num(num), _), tokens @ ..] => {
+            println!("  mov rax, {num}");
 
-        let mut tokens = tokens;
-        while !tokens.is_empty() {
-            match tokens {
-                [(Token::Plus, _), (Token::Num(num), _), rest @ ..] => {
-                    println!("  add rax, {num}");
-                    tokens = rest;
-                }
-                [(Token::Minus, _), (Token::Num(num), _), rest @ ..] => {
-                    println!("  sub rax, {num}");
-                    tokens = rest;
-                }
-                _ => {
-                    panic!("予期しない文字です。");
+            let mut tokens = tokens;
+            loop {
+                match tokens {
+                    [(Token::Plus, _), (Token::Num(num), _), rest @ ..] => {
+                        println!("  add rax, {num}");
+                        tokens = rest;
+                    }
+                    [(Token::Minus, _), (Token::Num(num), _), rest @ ..] => {
+                        println!("  sub rax, {num}");
+                        tokens = rest;
+                    }
+                    [(_, pos), ..] => {
+                        error("予期しない文字です。", *pos, &raw_input);
+                    }
+                    [] => break,
                 }
             }
         }
-    } else {
-        panic!("数から始まっていない");
+        [(_, pos), ..] => {
+            error("数から始まっていない", *pos, &raw_input);
+        }
+        [] => panic!("no tokens"),
     }
 
     println!("  ret");
+}
+
+fn error(error_message: &str, pos: SourcePosition, input: &str) -> ! {
+    eprintln!("{input}\n{:pos$}^{error_message}", "");
+    panic!("compile error")
 }
 
 fn tokenize(mut input: &[char]) -> Vec<(Token, SourcePosition)> {
@@ -70,7 +77,7 @@ fn tokenize(mut input: &[char]) -> Vec<(Token, SourcePosition)> {
                 }
             }
             _ => {
-                panic!("予期しない文字です。");
+                panic!("tokenize error");
             }
         }
     }
