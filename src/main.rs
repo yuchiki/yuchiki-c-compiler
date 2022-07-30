@@ -57,6 +57,20 @@ impl<'a> ParserState<'a> {
                 self.advance(1);
                 Expr::Num(*num)
             }
+            [(Token::LParen, _), ..] => {
+                self.advance(1);
+                let expr = self.munch_expr();
+                match self.tokens {
+                    [(Token::RParen, _), ..] => {
+                        self.advance(1);
+                        expr
+                    }
+                    [(token, pos), ..] => {
+                        self.error(&format!("expected ')', but got {:?}", token), *pos)
+                    }
+                    _ => panic!("かっこが閉じられていない"),
+                }
+            }
             [(token, pos), ..] => {
                 self.error(&format!("expected primary but got {:?}", token), *pos);
             }
