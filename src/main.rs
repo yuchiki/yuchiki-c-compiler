@@ -1,15 +1,5 @@
-#[derive(Debug, Copy, Clone)]
-struct SourcePosition(pub usize);
-
-type PositionedToken = (Token, SourcePosition);
-
-#[derive(Debug)]
-enum Token {
-    Num(i32),
-    Plus,
-    Minus,
-    Asterisk,
-}
+mod lex;
+use lex::{PositionedToken, SourcePosition, Token};
 
 #[derive(Debug)]
 enum Expr {
@@ -23,7 +13,7 @@ fn main() {
     let raw_input = std::env::args().nth(1).expect("no arguments");
     let input = raw_input.chars().collect::<Vec<_>>();
 
-    let tokens = tokenize(&input);
+    let tokens = lex::tokenize(&input);
     let tokens = &tokens[..];
 
     let (expr, tokens) = munch_expr(tokens);
@@ -41,63 +31,9 @@ fn main() {
     println!("  ret");
 }
 
-fn error(error_message: &str, pos: SourcePosition, input: &str) -> ! {
+fn error(error_message: &str, pos: lex::SourcePosition, input: &str) -> ! {
     eprintln!("{input}\n{:width$}^{error_message}", "", width = pos.0);
     panic!("compile error")
-}
-
-fn tokenize(mut input: &[char]) -> Vec<PositionedToken> {
-    let mut ans = vec![];
-    let mut pos = SourcePosition(0);
-
-    while !input.is_empty() {
-        match input {
-            ['+', rest @ ..] => {
-                ans.push((Token::Plus, pos));
-                input = rest;
-                pos.0 += 1;
-            }
-            ['-', rest @ ..] => {
-                ans.push((Token::Minus, pos));
-                input = rest;
-                pos.0 += 1;
-            }
-            ['*', rest @ ..] => {
-                ans.push((Token::Asterisk, pos));
-                input = rest;
-                pos.0 += 1;
-            }
-            ['0'..='9', ..] => {
-                if let (rest, Some(num), char_count) = munch_int(input) {
-                    ans.push((Token::Num(num), pos));
-                    input = rest;
-                    pos.0 += char_count;
-                }
-            }
-            _ => {
-                panic!("tokenize error");
-            }
-        }
-    }
-
-    ans
-}
-
-fn munch_int(mut input: &[char]) -> (&[char], Option<i32>, usize) {
-    let mut char_count = 0;
-
-    if let ['0'..='9', ..] = input {
-        let mut ans = 0;
-        while let [digit @ '0'..='9', rest @ ..] = input {
-            ans = ans * 10 + (*digit as i32) - ('0' as i32);
-            input = rest;
-            char_count += 1;
-        }
-
-        (input, Some(ans), char_count)
-    } else {
-        (input, None, 0)
-    }
 }
 
 fn munch_expr(tokens: &[PositionedToken]) -> (Expr, &[PositionedToken]) {
