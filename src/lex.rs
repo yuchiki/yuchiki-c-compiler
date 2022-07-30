@@ -9,6 +9,9 @@ pub enum Token {
     Plus,
     Minus,
     Asterisk,
+    Slash,
+    LParen,
+    RParen,
 }
 
 pub fn tokenize(mut input: &[char]) -> Vec<PositionedToken> {
@@ -29,6 +32,21 @@ pub fn tokenize(mut input: &[char]) -> Vec<PositionedToken> {
             }
             ['*', rest @ ..] => {
                 ans.push((Token::Asterisk, pos));
+                input = rest;
+                pos.0 += 1;
+            }
+            ['/', rest @ ..] => {
+                ans.push((Token::Slash, pos));
+                input = rest;
+                pos.0 += 1;
+            }
+            ['(', rest @ ..] => {
+                ans.push((Token::LParen, pos));
+                input = rest;
+                pos.0 += 1;
+            }
+            [')', rest @ ..] => {
+                ans.push((Token::RParen, pos));
                 input = rest;
                 pos.0 += 1;
             }

@@ -41,6 +41,11 @@ impl<'a> ParserState<'a> {
                     let rhs = self.munch_primary();
                     expr = Expr::Mul(Box::new(expr), Box::new(rhs));
                 }
+                [(Token::Slash, _), ..] => {
+                    self.advance(1);
+                    let rhs = self.munch_primary();
+                    expr = Expr::Div(Box::new(expr), Box::new(rhs));
+                }
                 _ => return expr,
             }
         }
@@ -75,6 +80,7 @@ enum Expr {
     Add(Box<Expr>, Box<Expr>),
     Sub(Box<Expr>, Box<Expr>),
     Mul(Box<Expr>, Box<Expr>),
+    Div(Box<Expr>, Box<Expr>),
     Num(i32),
 }
 
@@ -139,6 +145,20 @@ fn gen_expr(expr: Expr) {
             println!("  pop rax");
 
             println!("  imul rax, rdi");
+
+            println!("  push rax");
+        }
+
+        Expr::Div(lhs, rhs) => {
+            gen_expr(*lhs);
+            gen_expr(*rhs);
+
+            println!("  pop rdi");
+            println!("  pop rax");
+
+            println!("  cqo");
+            println!("  idiv rdi");
+
             println!("  push rax");
         }
     }
