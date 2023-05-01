@@ -26,7 +26,7 @@ fn collect_identifiers_in_statements(statements: &Vec<Statement>) -> Vec<String>
 
 fn collect_identifiers_in_statement(statement: &Statement) -> Vec<String> {
     match statement {
-        Statement::Expr(expr) => collect_identifiers_in_expr(expr),
+        Statement::Expr(expr) | Statement::Return(expr) => collect_identifiers_in_expr(expr),
     }
 }
 

@@ -4,6 +4,7 @@ mod lex;
 mod offset_calculator;
 mod parser;
 mod statement;
+mod token;
 fn main() {
     let raw_input = std::env::args().nth(1).expect("no arguments");
     let input = raw_input.chars().collect::<Vec<_>>();
