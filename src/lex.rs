@@ -18,6 +18,8 @@ pub enum Token {
     LessThanOrEqual,
     GreaterThan,
     GreaterThanOrEqual,
+    Assign,
+    Semicolon,
 }
 
 pub fn tokenize(mut input: &[char]) -> Vec<PositionedToken> {
@@ -92,6 +94,19 @@ pub fn tokenize(mut input: &[char]) -> Vec<PositionedToken> {
                     input = rest;
                     pos.0 += char_count;
                 }
+            }
+            ['=', rest @ ..] => {
+                ans.push((Token::Assign, pos));
+                input = rest;
+                pos.0 += 1;
+            }
+            [';', rest @ ..] => {
+                ans.push((Token::Semicolon, pos));
+                input = rest;
+                pos.0 += 1;
+            }
+            ['\t', rest @ ..] => {
+                input = rest;
             }
             [' ', rest @ ..] => {
                 input = rest;

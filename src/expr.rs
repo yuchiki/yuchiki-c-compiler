@@ -11,4 +11,5 @@ pub enum Expr {
     NotEqual(Box<Expr>, Box<Expr>),
     GreaterThan(Box<Expr>, Box<Expr>),
     GreaterEqual(Box<Expr>, Box<Expr>),
+    Assign(Box<Expr>, Box<Expr>),
 }

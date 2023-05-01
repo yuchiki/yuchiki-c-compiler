@@ -2,6 +2,7 @@ mod expr;
 mod generator;
 mod lex;
 mod parser;
+mod statement;
 fn main() {
     let raw_input = std::env::args().nth(1).expect("no arguments");
     let input = raw_input.chars().collect::<Vec<_>>();
@@ -10,10 +11,11 @@ fn main() {
 
     let mut parser_state = parser::ParserState::new(tokens, &raw_input);
 
-    let expr = parser_state.munch_expr();
-    if !parser_state.fully_parsed() {
-        panic!("parseした後にtokensがあまっている");
+    let mut statements = vec![];
+
+    while !parser_state.fully_parsed() {
+        statements.push(parser_state.munch_statement());
     }
 
-    generator::gen(expr);
+    generator::gen(statements);
 }
