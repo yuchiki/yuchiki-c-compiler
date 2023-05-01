@@ -22,6 +22,60 @@ impl<'a> ParserState<'a> {
     }
 
     pub fn munch_expr(&mut self) -> Expr {
+        self.munch_equality()
+    }
+
+    pub fn munch_equality(&mut self) -> Expr {
+        let mut expr = self.munch_relational();
+
+        loop {
+            match self.tokens {
+                [(Token::Equality, _), ..] => {
+                    self.advance(1);
+                    let rhs = self.munch_relational();
+                    expr = Expr::Equal(Box::new(expr), Box::new(rhs));
+                }
+                [(Token::Inequality, _), ..] => {
+                    self.advance(1);
+                    let rhs = self.munch_relational();
+                    expr = Expr::NotEqual(Box::new(expr), Box::new(rhs));
+                }
+                _ => return expr,
+            }
+        }
+    }
+
+    pub fn munch_relational(&mut self) -> Expr {
+        let mut expr = self.munch_add();
+
+        loop {
+            match self.tokens {
+                [(Token::LessThan, _), ..] => {
+                    self.advance(1);
+                    let rhs = self.munch_add();
+                    expr = Expr::LessThan(Box::new(expr), Box::new(rhs));
+                }
+                [(Token::LessThanOrEqual, _), ..] => {
+                    self.advance(1);
+                    let rhs = self.munch_add();
+                    expr = Expr::LessEqual(Box::new(expr), Box::new(rhs));
+                }
+                [(Token::GreaterThan, _), ..] => {
+                    self.advance(1);
+                    let rhs = self.munch_add();
+                    expr = Expr::GreaterThan(Box::new(expr), Box::new(rhs));
+                }
+                [(Token::GreaterThanOrEqual, _), ..] => {
+                    self.advance(1);
+                    let rhs = self.munch_add();
+                    expr = Expr::GreaterEqual(Box::new(expr), Box::new(rhs));
+                }
+                _ => return expr,
+            }
+        }
+    }
+
+    pub fn munch_add(&mut self) -> Expr {
         let mut expr = self.munch_mul();
 
         loop {
