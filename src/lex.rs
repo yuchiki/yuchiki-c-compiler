@@ -1,27 +1,9 @@
+use crate::token::Token;
+
 #[derive(Debug, Copy, Clone)]
 pub struct SourcePosition(pub usize);
 
 pub type PositionedToken = (Token, SourcePosition);
-
-#[derive(Debug)]
-pub enum Token {
-    Num(i32),
-    Identifier(String),
-    Plus,
-    Minus,
-    Asterisk,
-    Slash,
-    LParen,
-    RParen,
-    Equality,
-    Inequality,
-    LessThan,
-    LessThanOrEqual,
-    GreaterThan,
-    GreaterThanOrEqual,
-    Assign,
-    Semicolon,
-}
 
 pub fn tokenize(mut input: &[char]) -> Vec<PositionedToken> {
     let mut ans = vec![];
@@ -105,6 +87,11 @@ pub fn tokenize(mut input: &[char]) -> Vec<PositionedToken> {
                 ans.push((Token::Semicolon, pos));
                 input = rest;
                 pos.0 += 1;
+            }
+            ['r', 'e', 't', 'u', 'r', 'n', rest @ ..] => {
+                ans.push((Token::Return, pos));
+                input = rest;
+                pos.0 += 6;
             }
             ['a'..='z', ..] => {
                 if let (rest, Some(identifier), char_count) = munch_identifier(input) {

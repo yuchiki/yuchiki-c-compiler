@@ -53,4 +53,7 @@ assert 3 "num=3;"
 assert 5 "num=3;num+2;"
 assert 6 "num1=num2=3; num1+num2;"
 
+assert 3 "return 3;"
+assert 3 "return 3; return 5;"
+
 echo OK

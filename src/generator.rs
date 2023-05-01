@@ -39,6 +39,13 @@ impl Generator {
                 self.gen_expr(expr);
                 println!("  pop rax");
             }
+            Statement::Return(expr) => {
+                self.gen_expr(expr);
+                println!("  pop rax");
+                println!("  mov rsp, rbp");
+                println!("  pop rbp");
+                println!("  ret");
+            }
         }
     }
 
