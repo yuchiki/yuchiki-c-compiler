@@ -1,6 +1,7 @@
 use crate::{
     expr::Expr,
     lex::{PositionedToken, SourcePosition, Token},
+    statement::Statement,
 };
 
 pub struct ParserState<'a> {
@@ -21,8 +22,34 @@ impl<'a> ParserState<'a> {
         self.tokens = &self.tokens[offset..]
     }
 
+    pub fn munch_statement(&mut self) -> Statement {
+        let expr = self.munch_expr();
+        match self.tokens {
+            [(Token::Semicolon, _), ..] => {
+                self.advance(1);
+                Statement::Expr(expr)
+            }
+            _ => panic!("セミコロンがない"),
+        }
+    }
+
     pub fn munch_expr(&mut self) -> Expr {
-        self.munch_equality()
+        self.munch_assign()
+    }
+
+    pub fn munch_assign(&mut self) -> Expr {
+        let mut expr = self.munch_equality();
+
+        loop {
+            match self.tokens {
+                [(Token::Assign, _), ..] => {
+                    self.advance(1);
+                    let rhs = self.munch_assign();
+                    expr = Expr::Assign(Box::new(expr), Box::new(rhs));
+                }
+                _ => return expr,
+            }
+        }
     }
 
     pub fn munch_equality(&mut self) -> Expr {

@@ -1,14 +1,28 @@
-use crate::expr::Expr;
+use crate::{expr::Expr, statement::Statement};
 
-pub fn gen(expr: Expr) {
+pub fn gen(statements: Vec<Statement>) {
     println!(".intel_syntax noprefix");
     println!(".globl main");
     println!("main:");
 
-    gen_expr(expr);
+    gen_statements(statements);
 
-    println!("  pop rax");
     println!("  ret");
+}
+
+fn gen_statements(statements: Vec<Statement>) {
+    for statement in statements {
+        gen_statement(statement);
+    }
+}
+
+fn gen_statement(statement: Statement) {
+    match statement {
+        Statement::Expr(expr) => {
+            gen_expr(expr);
+            println!("  pop rax");
+        }
+    }
 }
 
 fn gen_expr(expr: Expr) {
@@ -133,5 +147,6 @@ fn gen_expr(expr: Expr) {
             println!("  movzb rax, al");
             println!("  push rax");
         }
+        Expr::Assign(_, _) => todo!(),
     }
 }
