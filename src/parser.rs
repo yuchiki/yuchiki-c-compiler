@@ -162,6 +162,10 @@ impl<'a> ParserState<'a> {
                 self.advance(1);
                 Expr::Num(*num)
             }
+            [(Token::Identifier(name), _), ..] => {
+                self.advance(1);
+                Expr::Variable(name.clone())
+            }
             [(Token::LParen, _), ..] => {
                 self.advance(1);
                 let expr = self.munch_expr();

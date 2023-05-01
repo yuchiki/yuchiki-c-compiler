@@ -1,6 +1,7 @@
 mod expr;
 mod generator;
 mod lex;
+mod offset_calculator;
 mod parser;
 mod statement;
 fn main() {
@@ -17,5 +18,9 @@ fn main() {
         statements.push(parser_state.munch_statement());
     }
 
-    generator::gen(statements);
+    let variable_offsets = offset_calculator::calculate_offset(&statements);
+
+    let generator = generator::Generator::new(variable_offsets);
+
+    generator.gen(statements);
 }
