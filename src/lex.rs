@@ -6,6 +6,7 @@ pub type PositionedToken = (Token, SourcePosition);
 #[derive(Debug)]
 pub enum Token {
     Num(i32),
+    Identifier(String),
     Plus,
     Minus,
     Asterisk,
@@ -105,16 +106,16 @@ pub fn tokenize(mut input: &[char]) -> Vec<PositionedToken> {
                 input = rest;
                 pos.0 += 1;
             }
-            ['\t', rest @ ..] => {
-                input = rest;
+            ['a'..='z', ..] => {
+                if let (rest, Some(identifier), char_count) = munch_identifier(input) {
+                    ans.push((Token::Identifier(identifier), pos));
+                    input = rest;
+                    pos.0 += char_count;
+                }
             }
-            [' ', rest @ ..] => {
+            [' ' | '\t' | '\n', rest @ ..] => {
                 input = rest;
                 pos.0 += 1;
-            }
-            ['\n', rest @ ..] => {
-                input = rest;
-                pos.0 = 0;
             }
             _ => {
                 panic!("tokenize error");
@@ -132,6 +133,23 @@ fn munch_int(mut input: &[char]) -> (&[char], Option<i32>, usize) {
         let mut ans = 0;
         while let [digit @ '0'..='9', rest @ ..] = input {
             ans = ans * 10 + (*digit as i32) - ('0' as i32);
+            input = rest;
+            char_count += 1;
+        }
+
+        (input, Some(ans), char_count)
+    } else {
+        (input, None, 0)
+    }
+}
+
+fn munch_identifier(mut input: &[char]) -> (&[char], Option<String>, usize) {
+    let mut char_count = 0;
+
+    if let ['a'..='z', ..] = input {
+        let mut ans = String::new();
+        while let [alpha @ ('a'..='z' | '0'..='9' | '_'), rest @ ..] = input {
+            ans.push(*alpha);
             input = rest;
             char_count += 1;
         }

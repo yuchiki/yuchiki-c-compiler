@@ -1,152 +1,200 @@
+use std::collections::HashMap;
+
 use crate::{expr::Expr, statement::Statement};
 
-pub fn gen(statements: Vec<Statement>) {
-    println!(".intel_syntax noprefix");
-    println!(".globl main");
-    println!("main:");
-
-    gen_statements(statements);
-
-    println!("  ret");
+pub struct Generator {
+    variable_offsets: HashMap<String, usize>,
 }
 
-fn gen_statements(statements: Vec<Statement>) {
-    for statement in statements {
-        gen_statement(statement);
+impl Generator {
+    pub fn new(variable_offsets: HashMap<String, usize>) -> Self {
+        Self { variable_offsets }
     }
-}
 
-fn gen_statement(statement: Statement) {
-    match statement {
-        Statement::Expr(expr) => {
-            gen_expr(expr);
-            println!("  pop rax");
+    pub fn gen(&self, statements: Vec<Statement>) {
+        println!(".intel_syntax noprefix");
+        println!(".globl main");
+        println!("main:");
+
+        println!("  push rbp");
+        println!("  mov rbp, rsp");
+        println!("  sub rsp, {}", self.variable_offsets.len() * 8);
+
+        self.gen_statements(statements);
+
+        println!("  mov rsp, rbp");
+        println!("  pop rbp");
+        println!("  ret");
+    }
+
+    fn gen_statements(&self, statements: Vec<Statement>) {
+        for statement in statements {
+            self.gen_statement(statement);
         }
     }
-}
 
-fn gen_expr(expr: Expr) {
-    match expr {
-        Expr::Num(n) => {
-            println!("  push {n}");
+    fn gen_statement(&self, statement: Statement) {
+        match statement {
+            Statement::Expr(expr) => {
+                self.gen_expr(expr);
+                println!("  pop rax");
+            }
         }
-        Expr::Add(lhs, rhs) => {
-            gen_expr(*lhs);
-            gen_expr(*rhs);
+    }
 
-            println!("  pop rdi");
-            println!("  pop rax");
+    fn gen_expr(&self, expr: Expr) {
+        match expr {
+            Expr::Num(n) => {
+                println!("  push {n}");
+            }
+            Expr::Add(lhs, rhs) => {
+                self.gen_expr(*lhs);
+                self.gen_expr(*rhs);
 
-            println!("  add rax, rdi");
-            println!("  push rax");
+                println!("  pop rdi");
+                println!("  pop rax");
+
+                println!("  add rax, rdi");
+                println!("  push rax");
+            }
+
+            Expr::Sub(lhs, rhs) => {
+                self.gen_expr(*lhs);
+                self.gen_expr(*rhs);
+
+                println!("  pop rdi");
+                println!("  pop rax");
+
+                println!("  sub rax, rdi");
+                println!("  push rax");
+            }
+            Expr::Mul(lhs, rhs) => {
+                self.gen_expr(*lhs);
+                self.gen_expr(*rhs);
+
+                println!("  pop rdi");
+                println!("  pop rax");
+
+                println!("  imul rax, rdi");
+
+                println!("  push rax");
+            }
+
+            Expr::Div(lhs, rhs) => {
+                self.gen_expr(*lhs);
+                self.gen_expr(*rhs);
+
+                println!("  pop rdi");
+                println!("  pop rax");
+
+                println!("  cqo");
+                println!("  idiv rdi");
+
+                println!("  push rax");
+            }
+            Expr::LessThan(lhs, rhs) => {
+                self.gen_expr(*lhs);
+                self.gen_expr(*rhs);
+
+                println!("  pop rdi");
+                println!("  pop rax");
+
+                println!("  cmp rax, rdi");
+                println!("  setl al");
+                println!("  movzb rax, al");
+                println!("  push rax");
+            }
+            Expr::LessEqual(lhs, rhs) => {
+                self.gen_expr(*lhs);
+                self.gen_expr(*rhs);
+
+                println!("  pop rdi");
+                println!("  pop rax");
+
+                println!("  cmp rax, rdi");
+                println!("  setle al");
+                println!("  movzb rax, al");
+                println!("  push rax");
+            }
+            Expr::Equal(lhs, rhs) => {
+                self.gen_expr(*lhs);
+                self.gen_expr(*rhs);
+
+                println!("  pop rdi");
+                println!("  pop rax");
+
+                println!("  cmp rax, rdi");
+                println!("  sete al");
+                println!("  movzb rax, al");
+                println!("  push rax");
+            }
+            Expr::NotEqual(lhs, rhs) => {
+                self.gen_expr(*lhs);
+                self.gen_expr(*rhs);
+
+                println!("  pop rdi");
+                println!("  pop rax");
+
+                println!("  cmp rax, rdi");
+                println!("  setne al");
+                println!("  movzb rax, al");
+                println!("  push rax");
+            }
+            Expr::GreaterThan(lhs, rhs) => {
+                self.gen_expr(*lhs);
+                self.gen_expr(*rhs);
+
+                println!("  pop rdi");
+                println!("  pop rax");
+
+                println!("  cmp rax, rdi");
+                println!("  setg al");
+                println!("  movzb rax, al");
+                println!("  push rax");
+            }
+            Expr::GreaterEqual(lhs, rhs) => {
+                self.gen_expr(*lhs);
+                self.gen_expr(*rhs);
+
+                println!("  pop rdi");
+                println!("  pop rax");
+
+                println!("  cmp rax, rdi");
+                println!("  setge al");
+                println!("  movzb rax, al");
+                println!("  push rax");
+            }
+            Expr::Assign(lhs, rhs) => {
+                self.gen_lvalue(*lhs);
+                self.gen_expr(*rhs);
+
+                println!("  pop rdi");
+                println!("  pop rax");
+                println!("  mov [rax], rdi");
+                println!("  push rdi");
+            }
+            Expr::Variable(_) => {
+                self.gen_lvalue(expr);
+                println!("  pop rax");
+                println!("  mov rax, [rax]");
+                println!("  push rax");
+            }
         }
+    }
 
-        Expr::Sub(lhs, rhs) => {
-            gen_expr(*lhs);
-            gen_expr(*rhs);
+    fn gen_lvalue(&self, expr: Expr) {
+        match expr {
+            Expr::Variable(name) => {
+                let offset = self
+                    .variable_offsets
+                    .get(&name)
+                    .expect("variable not found");
 
-            println!("  pop rdi");
-            println!("  pop rax");
-
-            println!("  sub rax, rdi");
-            println!("  push rax");
+                println!("  mov rax, rbp");
+                println!("  sub rax, {}", offset);
+                println!("  push rax");
+            }
+            _ => todo!(),
         }
-        Expr::Mul(lhs, rhs) => {
-            gen_expr(*lhs);
-            gen_expr(*rhs);
-
-            println!("  pop rdi");
-            println!("  pop rax");
-
-            println!("  imul rax, rdi");
-
-            println!("  push rax");
-        }
-
-        Expr::Div(lhs, rhs) => {
-            gen_expr(*lhs);
-            gen_expr(*rhs);
-
-            println!("  pop rdi");
-            println!("  pop rax");
-
-            println!("  cqo");
-            println!("  idiv rdi");
-
-            println!("  push rax");
-        }
-        Expr::LessThan(lhs, rhs) => {
-            gen_expr(*lhs);
-            gen_expr(*rhs);
-
-            println!("  pop rdi");
-            println!("  pop rax");
-
-            println!("  cmp rax, rdi");
-            println!("  setl al");
-            println!("  movzb rax, al");
-            println!("  push rax");
-        }
-        Expr::LessEqual(lhs, rhs) => {
-            gen_expr(*lhs);
-            gen_expr(*rhs);
-
-            println!("  pop rdi");
-            println!("  pop rax");
-
-            println!("  cmp rax, rdi");
-            println!("  setle al");
-            println!("  movzb rax, al");
-            println!("  push rax");
-        }
-        Expr::Equal(lhs, rhs) => {
-            gen_expr(*lhs);
-            gen_expr(*rhs);
-
-            println!("  pop rdi");
-            println!("  pop rax");
-
-            println!("  cmp rax, rdi");
-            println!("  sete al");
-            println!("  movzb rax, al");
-            println!("  push rax");
-        }
-        Expr::NotEqual(lhs, rhs) => {
-            gen_expr(*lhs);
-            gen_expr(*rhs);
-
-            println!("  pop rdi");
-            println!("  pop rax");
-
-            println!("  cmp rax, rdi");
-            println!("  setne al");
-            println!("  movzb rax, al");
-            println!("  push rax");
-        }
-        Expr::GreaterThan(lhs, rhs) => {
-            gen_expr(*lhs);
-            gen_expr(*rhs);
-
-            println!("  pop rdi");
-            println!("  pop rax");
-
-            println!("  cmp rax, rdi");
-            println!("  setg al");
-            println!("  movzb rax, al");
-            println!("  push rax");
-        }
-        Expr::GreaterEqual(lhs, rhs) => {
-            gen_expr(*lhs);
-            gen_expr(*rhs);
-
-            println!("  pop rdi");
-            println!("  pop rax");
-
-            println!("  cmp rax, rdi");
-            println!("  setge al");
-            println!("  movzb rax, al");
-            println!("  push rax");
-        }
-        Expr::Assign(_, _) => todo!(),
     }
 }
