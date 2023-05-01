@@ -21,7 +21,7 @@ fn main() {
 
     let variable_offsets = offset_calculator::calculate_offset(&statements);
 
-    let generator = generator::Generator::new(variable_offsets);
+    let mut generator = generator::Generator::new(variable_offsets);
 
     generator.gen(statements);
 }
