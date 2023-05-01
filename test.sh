@@ -4,7 +4,7 @@ assert() {
     expected="$1"
     input="$2"
 
-    cargo run -- "$input" > tmpdir/tmp.s
+    RUST_BACKTRACE=1 cargo run -- "$input" > tmpdir/tmp.s
     cc -o tmpdir/tmp tmpdir/tmp.s
     ./tmpdir/tmp
     actual="$?"
@@ -23,4 +23,5 @@ assert 21 "5+20-4"
 assert 7 "1+2*3"
 assert 5 "3+10/5"
 assert 14 "2*(3+4)"
+assert 10 "-10+20"
 echo OK
