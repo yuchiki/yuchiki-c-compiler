@@ -42,22 +42,36 @@ impl<'a> ParserState<'a> {
     }
 
     fn munch_mul(&mut self) -> Expr {
-        let mut expr = self.munch_primary();
+        let mut expr = self.munch_unary();
 
         loop {
             match self.tokens {
                 [(Token::Asterisk, _), ..] => {
                     self.advance(1);
-                    let rhs = self.munch_primary();
+                    let rhs = self.munch_unary();
                     expr = Expr::Mul(Box::new(expr), Box::new(rhs));
                 }
                 [(Token::Slash, _), ..] => {
                     self.advance(1);
-                    let rhs = self.munch_primary();
+                    let rhs = self.munch_unary();
                     expr = Expr::Div(Box::new(expr), Box::new(rhs));
                 }
                 _ => return expr,
             }
+        }
+    }
+
+    fn munch_unary(&mut self) -> Expr {
+        match self.tokens {
+            [(Token::Plus, _), ..] => {
+                self.advance(1);
+                self.munch_primary()
+            }
+            [(Token::Minus, _), ..] => {
+                self.advance(1);
+                Expr::Sub(Box::new(Expr::Num(0)), Box::new(self.munch_primary()))
+            }
+            _ => self.munch_primary(),
         }
     }
 
