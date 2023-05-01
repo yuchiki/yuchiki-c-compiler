@@ -24,22 +24,48 @@ impl<'a> ParserState<'a> {
     }
 
     pub fn munch_statement(&mut self) -> Statement {
-        let statement = match self.tokens {
+        match self.tokens {
             [(Token::Return, _), ..] => {
                 self.advance(1);
-                Statement::Return(self.munch_expr())
+                let statment = Statement::Return(self.munch_expr());
+                match self.tokens {
+                    [(Token::Semicolon, _), ..] => {
+                        self.advance(1);
+                        statment
+                    }
+                    _ => panic!("セミコロンがない"),
+                }
             }
-            _ => Statement::Expr(self.munch_expr()),
-        };
-
-        match self.tokens {
-            [(Token::Semicolon, _), ..] => {
-                self.advance(1);
+            [(Token::If, _), (Token::LParen, _), ..] => {
+                self.advance(2);
+                let cond = self.munch_expr();
+                match self.tokens {
+                    [(Token::RParen, _), ..] => {
+                        self.advance(1);
+                        let then = self.munch_statement();
+                        match self.tokens {
+                            [(Token::Else, _), ..] => {
+                                self.advance(1);
+                                let els = self.munch_statement();
+                                Statement::IfElse(Box::new(cond), Box::new(then), Box::new(els))
+                            }
+                            _ => Statement::If(Box::new(cond), Box::new(then)),
+                        }
+                    }
+                    _ => panic!("括弧が閉じられていない"),
+                }
             }
-            _ => panic!("セミコロンがない"),
+            _ => {
+                let expr = self.munch_expr();
+                match self.tokens {
+                    [(Token::Semicolon, _), ..] => {
+                        self.advance(1);
+                        Statement::Expr(expr)
+                    }
+                    _ => panic!("セミコロンがない"),
+                }
+            }
         }
-
-        statement
     }
 
     pub fn munch_expr(&mut self) -> Expr {

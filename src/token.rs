@@ -17,4 +17,6 @@ pub enum Token {
     Assign,
     Semicolon,
     Return,
+    If,
+    Else,
 }

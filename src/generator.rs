@@ -4,14 +4,23 @@ use crate::{expr::Expr, statement::Statement};
 
 pub struct Generator {
     variable_offsets: HashMap<String, usize>,
+    fresh_counter: usize,
 }
 
 impl Generator {
     pub fn new(variable_offsets: HashMap<String, usize>) -> Self {
-        Self { variable_offsets }
+        Self {
+            variable_offsets,
+            fresh_counter: 0,
+        }
     }
 
-    pub fn gen(&self, statements: Vec<Statement>) {
+    fn get_fresh_suffix(&mut self) -> String {
+        self.fresh_counter += 1;
+        format!("{}", self.fresh_counter)
+    }
+
+    pub fn gen(&mut self, statements: Vec<Statement>) {
         println!(".intel_syntax noprefix");
         println!(".globl main");
         println!("main:");
@@ -27,13 +36,13 @@ impl Generator {
         println!("  ret");
     }
 
-    fn gen_statements(&self, statements: Vec<Statement>) {
+    fn gen_statements(&mut self, statements: Vec<Statement>) {
         for statement in statements {
             self.gen_statement(statement);
         }
     }
 
-    fn gen_statement(&self, statement: Statement) {
+    fn gen_statement(&mut self, statement: Statement) {
         match statement {
             Statement::Expr(expr) => {
                 self.gen_expr(expr);
@@ -45,6 +54,35 @@ impl Generator {
                 println!("  mov rsp, rbp");
                 println!("  pop rbp");
                 println!("  ret");
+            }
+            Statement::If(expr, then_statement) => {
+                let suffix = self.get_fresh_suffix();
+
+                self.gen_expr(*expr);
+                println!("  pop rax");
+                println!("  cmp rax, 0");
+                println!("  je .Lend{}", suffix);
+
+                self.gen_statement(*then_statement);
+
+                println!(".Lend{}:", suffix);
+            }
+            Statement::IfElse(expr, then_statement, else_statement) => {
+                let suffix = self.get_fresh_suffix();
+
+                self.gen_expr(*expr);
+                println!("  pop rax");
+                println!("  cmp rax, 0");
+                println!("  je .Lelse{}", suffix);
+
+                self.gen_statement(*then_statement);
+
+                println!("  jmp .Lend{}", suffix);
+                println!(".Lelse{}:", suffix);
+
+                self.gen_statement(*else_statement);
+
+                println!(".Lend{}:", suffix);
             }
         }
     }

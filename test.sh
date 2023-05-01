@@ -56,4 +56,10 @@ assert 6 "num1=num2=3; num1+num2;"
 assert 3 "return 3;"
 assert 3 "return 3; return 5;"
 
+assert 3 "if (1) 3;"
+assert 0 "if (0) 3;" # 括弧の中が最後に評価されるので、0が返る
+
+assert 3 "if (1) 3; else 5;"
+assert 5 "if (0) 3; else 5;"
+
 echo OK

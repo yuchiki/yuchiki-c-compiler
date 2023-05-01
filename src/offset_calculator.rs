@@ -27,6 +27,17 @@ fn collect_identifiers_in_statements(statements: &Vec<Statement>) -> Vec<String>
 fn collect_identifiers_in_statement(statement: &Statement) -> Vec<String> {
     match statement {
         Statement::Expr(expr) | Statement::Return(expr) => collect_identifiers_in_expr(expr),
+        Statement::If(cond, then) => [
+            &collect_identifiers_in_expr(cond)[..],
+            &collect_identifiers_in_statement(then)[..],
+        ]
+        .concat(),
+        Statement::IfElse(cond, then, els) => [
+            &collect_identifiers_in_expr(cond)[..],
+            &collect_identifiers_in_statement(then)[..],
+            &collect_identifiers_in_statement(els)[..],
+        ]
+        .concat(),
     }
 }
 
