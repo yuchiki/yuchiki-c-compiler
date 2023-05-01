@@ -61,5 +61,77 @@ fn gen_expr(expr: Expr) {
 
             println!("  push rax");
         }
+        Expr::LessThan(lhs, rhs) => {
+            gen_expr(*lhs);
+            gen_expr(*rhs);
+
+            println!("  pop rdi");
+            println!("  pop rax");
+
+            println!("  cmp rax, rdi");
+            println!("  setl al");
+            println!("  movzb rax, al");
+            println!("  push rax");
+        }
+        Expr::LessEqual(lhs, rhs) => {
+            gen_expr(*lhs);
+            gen_expr(*rhs);
+
+            println!("  pop rdi");
+            println!("  pop rax");
+
+            println!("  cmp rax, rdi");
+            println!("  setle al");
+            println!("  movzb rax, al");
+            println!("  push rax");
+        }
+        Expr::Equal(lhs, rhs) => {
+            gen_expr(*lhs);
+            gen_expr(*rhs);
+
+            println!("  pop rdi");
+            println!("  pop rax");
+
+            println!("  cmp rax, rdi");
+            println!("  sete al");
+            println!("  movzb rax, al");
+            println!("  push rax");
+        }
+        Expr::NotEqual(lhs, rhs) => {
+            gen_expr(*lhs);
+            gen_expr(*rhs);
+
+            println!("  pop rdi");
+            println!("  pop rax");
+
+            println!("  cmp rax, rdi");
+            println!("  setne al");
+            println!("  movzb rax, al");
+            println!("  push rax");
+        }
+        Expr::GreaterThan(lhs, rhs) => {
+            gen_expr(*lhs);
+            gen_expr(*rhs);
+
+            println!("  pop rdi");
+            println!("  pop rax");
+
+            println!("  cmp rax, rdi");
+            println!("  setg al");
+            println!("  movzb rax, al");
+            println!("  push rax");
+        }
+        Expr::GreaterEqual(lhs, rhs) => {
+            gen_expr(*lhs);
+            gen_expr(*rhs);
+
+            println!("  pop rdi");
+            println!("  pop rax");
+
+            println!("  cmp rax, rdi");
+            println!("  setge al");
+            println!("  movzb rax, al");
+            println!("  push rax");
+        }
     }
 }

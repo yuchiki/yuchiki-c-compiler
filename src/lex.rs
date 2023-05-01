@@ -12,6 +12,12 @@ pub enum Token {
     Slash,
     LParen,
     RParen,
+    Equality,
+    Inequality,
+    LessThan,
+    LessThanOrEqual,
+    GreaterThan,
+    GreaterThanOrEqual,
 }
 
 pub fn tokenize(mut input: &[char]) -> Vec<PositionedToken> {
@@ -50,12 +56,50 @@ pub fn tokenize(mut input: &[char]) -> Vec<PositionedToken> {
                 input = rest;
                 pos.0 += 1;
             }
+            ['=', '=', rest @ ..] => {
+                ans.push((Token::Equality, pos));
+                input = rest;
+                pos.0 += 2;
+            }
+            ['!', '=', rest @ ..] => {
+                ans.push((Token::Inequality, pos));
+                input = rest;
+                pos.0 += 2;
+            }
+            ['<', '=', rest @ ..] => {
+                ans.push((Token::LessThanOrEqual, pos));
+                input = rest;
+                pos.0 += 2;
+            }
+            ['>', '=', rest @ ..] => {
+                ans.push((Token::GreaterThanOrEqual, pos));
+                input = rest;
+                pos.0 += 2;
+            }
+            ['<', rest @ ..] => {
+                ans.push((Token::LessThan, pos));
+                input = rest;
+                pos.0 += 1;
+            }
+            ['>', rest @ ..] => {
+                ans.push((Token::GreaterThan, pos));
+                input = rest;
+                pos.0 += 1;
+            }
             ['0'..='9', ..] => {
                 if let (rest, Some(num), char_count) = munch_int(input) {
                     ans.push((Token::Num(num), pos));
                     input = rest;
                     pos.0 += char_count;
                 }
+            }
+            [' ', rest @ ..] => {
+                input = rest;
+                pos.0 += 1;
+            }
+            ['\n', rest @ ..] => {
+                input = rest;
+                pos.0 = 0;
             }
             _ => {
                 panic!("tokenize error");
