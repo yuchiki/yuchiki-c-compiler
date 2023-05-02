@@ -20,4 +20,5 @@ pub enum Token {
     If,
     Else,
     While,
+    For,
 }

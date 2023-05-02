@@ -43,6 +43,13 @@ fn collect_identifiers_in_statement(statement: &Statement) -> Vec<String> {
             &collect_identifiers_in_statement(body)[..],
         ]
         .concat(),
+        Statement::For(init, cond, step, body) => [
+            &collect_identifiers_in_expr(init)[..],
+            &collect_identifiers_in_expr(cond)[..],
+            &collect_identifiers_in_expr(step)[..],
+            &collect_identifiers_in_statement(body)[..],
+        ]
+        .concat(),
     }
 }
 

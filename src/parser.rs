@@ -67,6 +67,38 @@ impl<'a> ParserState<'a> {
                     _ => panic!("括弧が閉じられていない"),
                 }
             }
+            [(Token::For, _), (Token::LParen, _), ..] => {
+                self.advance(2);
+                let init = self.munch_expr();
+                if let [(Token::Semicolon, _), ..] = self.tokens {
+                    self.advance(1);
+                } else {
+                    panic!("セミコロンがない");
+                }
+
+                let cond = self.munch_expr();
+                if let [(Token::Semicolon, _), ..] = self.tokens {
+                    self.advance(1);
+                } else {
+                    panic!("セミコロンがない");
+                }
+
+                let update = self.munch_expr();
+                if let [(Token::RParen, _), ..] = self.tokens {
+                    self.advance(1);
+                } else {
+                    panic!("括弧が閉じられていない");
+                }
+
+                let body = self.munch_statement();
+
+                Statement::For(
+                    Box::new(init),
+                    Box::new(cond),
+                    Box::new(update),
+                    Box::new(body),
+                )
+            }
 
             _ => {
                 let expr = self.munch_expr();
