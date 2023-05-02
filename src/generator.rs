@@ -84,6 +84,21 @@ impl Generator {
 
                 println!(".Lend{}:", suffix);
             }
+            Statement::While(expr, statement) => {
+                let suffix = self.get_fresh_suffix();
+
+                println!(".Lbegin{}:", suffix);
+
+                self.gen_expr(*expr);
+                println!("  pop rax");
+                println!("  cmp rax, 0");
+                println!("  je .Lend{}", suffix);
+
+                self.gen_statement(*statement);
+
+                println!("  jmp .Lbegin{}", suffix);
+                println!(".Lend{}:", suffix);
+            }
         }
     }
 

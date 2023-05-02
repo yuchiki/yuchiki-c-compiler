@@ -103,6 +103,11 @@ pub fn tokenize(mut input: &[char]) -> Vec<PositionedToken> {
                 input = rest;
                 pos.0 += 4;
             }
+            ['w', 'h', 'i', 'l', 'e', rest @ ..] => {
+                ans.push((Token::While, pos));
+                input = rest;
+                pos.0 += 5;
+            }
             ['a'..='z', ..] => {
                 if let (rest, Some(identifier), char_count) = munch_identifier(input) {
                     ans.push((Token::Identifier(identifier), pos));
@@ -115,7 +120,7 @@ pub fn tokenize(mut input: &[char]) -> Vec<PositionedToken> {
                 pos.0 += 1;
             }
             _ => {
-                panic!("tokenize error");
+                panic!("tokenize error: {}", input.iter().collect::<String>());
             }
         }
     }

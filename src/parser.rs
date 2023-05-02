@@ -55,6 +55,19 @@ impl<'a> ParserState<'a> {
                     _ => panic!("括弧が閉じられていない"),
                 }
             }
+            [(Token::While, _), (Token::LParen, _), ..] => {
+                self.advance(2);
+                let cond = self.munch_expr();
+                match self.tokens {
+                    [(Token::RParen, _), ..] => {
+                        self.advance(1);
+                        let body = self.munch_statement();
+                        Statement::While(Box::new(cond), Box::new(body))
+                    }
+                    _ => panic!("括弧が閉じられていない"),
+                }
+            }
+
             _ => {
                 let expr = self.munch_expr();
                 match self.tokens {

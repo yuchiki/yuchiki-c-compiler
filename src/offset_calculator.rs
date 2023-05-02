@@ -38,6 +38,11 @@ fn collect_identifiers_in_statement(statement: &Statement) -> Vec<String> {
             &collect_identifiers_in_statement(els)[..],
         ]
         .concat(),
+        Statement::While(cond, body) => [
+            &collect_identifiers_in_expr(cond)[..],
+            &collect_identifiers_in_statement(body)[..],
+        ]
+        .concat(),
     }
 }
 
