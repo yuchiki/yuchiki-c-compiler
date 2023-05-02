@@ -256,6 +256,30 @@ impl<'a> ParserState<'a> {
                 self.advance(1);
                 Expr::Num(*num)
             }
+            [(Token::Identifier(name), _), (Token::LParen, _), ..] => {
+                self.advance(2);
+                let mut args = Vec::new();
+                loop {
+                    if let [(Token::RParen, _), ..] = self.tokens {
+                        self.advance(1);
+                        break;
+                    }
+
+                    args.push(self.munch_expr());
+                    match self.tokens {
+                        [(Token::Comma, _), ..] => {
+                            self.advance(1);
+                        }
+                        [(Token::RParen, _), ..] => {
+                            self.advance(1);
+                            break;
+                        }
+                        _ => panic!("引数の区切りが不正"),
+                    }
+                }
+
+                Expr::FunctionCall(name.clone(), args)
+            }
             [(Token::Identifier(name), _), ..] => {
                 self.advance(1);
                 Expr::Variable(name.clone())

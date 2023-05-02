@@ -23,5 +23,5 @@ fn main() {
 
     let mut generator = generator::Generator::new(variable_offsets);
 
-    generator.gen(statements);
+    generator.gen(&statements);
 }

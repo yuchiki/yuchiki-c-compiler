@@ -23,4 +23,5 @@ pub enum Token {
     For,
     LBrace,
     RBrace,
+    Comma,
 }
