@@ -77,7 +77,7 @@ main() {
 
     assert 55 "i = sum = 0; while (i <= 10) { sum = sum + i; i = i + 1; } sum;" # block のテスト
 
-    assert "5" "external_func(1,2,3,4,5,6);"
+    assert 91 "external_func(1,2,3,4,5,6);"
 
     echo OK
 }

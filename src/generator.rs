@@ -280,11 +280,12 @@ impl Generator {
                 }
 
                 println!("  call {}", name);
-                println!("  push rax");
 
                 if (rsp_offset % 16) != 0 {
                     println!("  add rsp, 8");
                 }
+
+                println!("  push rax");
             }
         }
     }
