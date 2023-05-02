@@ -99,6 +99,28 @@ impl Generator {
                 println!("  jmp .Lbegin{}", suffix);
                 println!(".Lend{}:", suffix);
             }
+            Statement::For(init, cond, update, body) => {
+                let suffix = self.get_fresh_suffix();
+
+                self.gen_expr(*init);
+
+                println!(".Lbegin{}:", suffix);
+
+                self.gen_expr(*cond);
+                println!("  pop rax");
+                println!("  cmp rax, 0");
+                println!("  je .Lend{}", suffix);
+
+                self.gen_statement(*body);
+
+                self.gen_expr(*update);
+
+                println!("  jmp .Lbegin{}", suffix);
+                println!(".Lend{}:", suffix);
+            }
+            Statement::Block(statements) => {
+                self.gen_statements(statements);
+            }
         }
     }
 

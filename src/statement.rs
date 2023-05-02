@@ -6,4 +6,6 @@ pub enum Statement {
     If(Box<Expr>, Box<Statement>),
     IfElse(Box<Expr>, Box<Statement>, Box<Statement>),
     While(Box<Expr>, Box<Statement>),
+    For(Box<Expr>, Box<Expr>, Box<Expr>, Box<Statement>),
+    Block(Vec<Statement>),
 }
