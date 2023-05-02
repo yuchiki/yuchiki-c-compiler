@@ -62,4 +62,6 @@ assert 0 "if (0) 3;" # 括弧の中が最後に評価されるので、0が返�
 assert 3 "if (1) 3; else 5;"
 assert 5 "if (0) 3; else 5;"
 
+assert 16 "i = 1; while (i <= 10) i = i * 2; i;"
+
 echo OK
