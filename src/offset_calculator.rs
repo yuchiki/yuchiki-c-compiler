@@ -73,5 +73,9 @@ fn collect_identifiers_in_expr(expr: &Expr) -> Vec<String> {
         .concat(),
         Expr::Num(_) => vec![],
         Expr::Variable(name) => vec![name.clone()],
+        Expr::FunctionCall(_, args) => args
+            .iter()
+            .flat_map(collect_identifiers_in_expr)
+            .collect::<Vec<String>>(),
     }
 }
