@@ -99,7 +99,21 @@ impl<'a> ParserState<'a> {
                     Box::new(body),
                 )
             }
+            [(Token::LBrace, _), ..] => {
+                self.advance(1);
+                let mut statements = Vec::new();
+                loop {
+                    match self.tokens {
+                        [(Token::RBrace, _), ..] => {
+                            self.advance(1);
+                            break;
+                        }
+                        _ => statements.push(self.munch_statement()),
+                    }
+                }
 
+                Statement::Block(statements)
+            }
             _ => {
                 let expr = self.munch_expr();
                 match self.tokens {

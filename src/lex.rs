@@ -88,6 +88,16 @@ pub fn tokenize(mut input: &[char]) -> Vec<PositionedToken> {
                 input = rest;
                 pos.0 += 1;
             }
+            ['{', rest @ ..] => {
+                ans.push((Token::LBrace, pos));
+                input = rest;
+                pos.0 += 1;
+            }
+            ['}', rest @ ..] => {
+                ans.push((Token::RBrace, pos));
+                input = rest;
+                pos.0 += 1;
+            }
             ['r', 'e', 't', 'u', 'r', 'n', rest @ ..] => {
                 ans.push((Token::Return, pos));
                 input = rest;

@@ -118,6 +118,9 @@ impl Generator {
                 println!("  jmp .Lbegin{}", suffix);
                 println!(".Lend{}:", suffix);
             }
+            Statement::Block(statements) => {
+                self.gen_statements(statements);
+            }
         }
     }
 

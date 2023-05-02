@@ -21,4 +21,6 @@ pub enum Token {
     Else,
     While,
     For,
+    LBrace,
+    RBrace,
 }

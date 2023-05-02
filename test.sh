@@ -66,4 +66,6 @@ assert 16 "i = 1; while (i <= 10) i = i * 2; i;"
 
 assert 55 "sum = i = 0; for (i = 1; i <= 10; i = i + 1) sum = sum + i; sum;"
 
+assert 55 "i = sum = 0; while (i <= 10) { sum = sum + i; i = i + 1; } sum;" # block のテスト
+
 echo OK

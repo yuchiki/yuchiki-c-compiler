@@ -50,6 +50,7 @@ fn collect_identifiers_in_statement(statement: &Statement) -> Vec<String> {
             &collect_identifiers_in_statement(body)[..],
         ]
         .concat(),
+        Statement::Block(statements) => collect_identifiers_in_statements(statements),
     }
 }
 
