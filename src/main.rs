@@ -1,23 +1,6 @@
-#![deny(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
-mod expr;
-mod generator;
-mod lex;
-mod offset_calculator;
-mod parser;
-mod statement;
-mod token;
-mod top_level;
+use yuchiki_c_compiler::process;
+
 fn main() {
     let raw_input = std::env::args().nth(1).expect("no arguments");
-    let input = raw_input.chars().collect::<Vec<_>>();
-
-    let tokens = &lex::tokenize(&input);
-
-    let mut parser_state = parser::State::new(tokens, &raw_input);
-
-    let program = parser_state.munch_program();
-
-    let mut generator = generator::Program::new(program);
-
-    generator.gen();
+    process(&raw_input, std::io::stdout().lock());
 }

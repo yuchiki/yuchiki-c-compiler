@@ -1,4 +1,4 @@
 /target
-tmpdir/tmp
+tmpdir/tmp*
 tmpdir/*.s
 !tmpdir/.gitkeep

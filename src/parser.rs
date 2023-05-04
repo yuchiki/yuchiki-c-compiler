@@ -353,7 +353,7 @@ impl<'a> State<'a> {
     }
 
     fn error(&self, error_message: &str, pos: SourcePosition) -> ! {
-        eprintln!(
+        eprint!(
             "{input}\n{:width$}^{error_message}",
             "",
             width = pos.0,

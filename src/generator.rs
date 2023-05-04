@@ -1,15 +1,16 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, io::Write};
 
 use crate::{expr::Expr, offset_calculator, statement::Statement, top_level::TopLevel};
 
 const SYSTEM_V_CALLER_SAVE_REGISTERS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
 
-pub struct Program {
+pub struct Program<'a, W: Write> {
     fresh_counter: usize,
     program: Vec<TopLevel>,
+    write: &'a mut W,
 }
 
-pub struct Function {
+pub struct Function<'a, W: Write> {
     variable_offsets: HashMap<String, usize>,
     name: String,
     params: Vec<String>,
@@ -18,29 +19,31 @@ pub struct Function {
     // うまくmutable な composition　が作れなかったのでとりあえずfresh_counterを持たせている
     // base_generator: &'a mut ProgramGenerator,
     fresh_counter: usize,
+    write: &'a mut W,
 }
 
-impl Program {
-    pub fn new(program: Vec<TopLevel>) -> Self {
+impl<'a, W: Write> Program<'a, W> {
+    pub fn new(program: Vec<TopLevel>, write: &'a mut W) -> Self {
         Self {
             fresh_counter: 0,
             program,
+            write,
         }
     }
     pub fn gen(&mut self) {
-        println!(".intel_syntax noprefix");
-        println!("  push rbp");
-        println!("  mov rbp, rsp");
+        writeln!(self.write, ".intel_syntax noprefix").unwrap();
+        writeln!(self.write, "  push rbp").unwrap();
+        writeln!(self.write, "  mov rbp, rsp").unwrap();
 
-        println!("  sub rsp, 8");
+        writeln!(self.write, "  sub rsp, 8").unwrap();
 
-        println!("  call main");
+        writeln!(self.write, "  call main").unwrap();
 
-        println!("  add rsp, 8");
+        writeln!(self.write, "  add rsp, 8").unwrap();
 
-        println!("  mov rsp, rbp");
-        println!("  pop rbp");
-        println!("  ret");
+        writeln!(self.write, "  mov rsp, rbp").unwrap();
+        writeln!(self.write, "  pop rbp").unwrap();
+        writeln!(self.write, "  ret").unwrap();
 
         let program = self.program.clone();
 
@@ -58,6 +61,7 @@ impl Program {
                     params.clone(),
                     statements.clone(),
                     self.fresh_counter,
+                    self.write,
                 );
                 self.fresh_counter = function_generator.gen();
             }
@@ -65,13 +69,14 @@ impl Program {
     }
 }
 
-impl Function {
+impl<'a, W: Write> Function<'a, W> {
     pub fn new(
         name: String,
         variable_offsets: HashMap<String, usize>,
         params: Vec<String>,
         body: Vec<Statement>,
         fresh_counter: usize,
+        write: &'a mut W,
     ) -> Self {
         Self {
             variable_offsets,
@@ -79,6 +84,7 @@ impl Function {
             params,
             body,
             fresh_counter,
+            write,
         }
     }
 
@@ -91,27 +97,29 @@ impl Function {
     fn gen(&mut self) -> usize {
         let variable_offsets = offset_calculator::calculate_offset(&self.params, &self.body);
 
-        println!(".globl {}", self.name);
-        println!("{}:", self.name);
+        writeln!(&mut self.write, ".globl {}", self.name).unwrap();
+        writeln!(self.write, "{}:", self.name).unwrap();
 
-        println!("  push rbp");
-        println!("  mov rbp, rsp");
-        println!("  sub rsp, {}", self.variable_offsets.len() * 8);
+        writeln!(self.write, "  push rbp").unwrap();
+        writeln!(self.write, "  mov rbp, rsp").unwrap();
+        writeln!(self.write, "  sub rsp, {}", self.variable_offsets.len() * 8).unwrap();
 
         for (i, param) in self.params.iter().enumerate() {
-            println!(
+            writeln!(
+                self.write,
                 "  mov [rbp-{}], {}",
                 variable_offsets[param], SYSTEM_V_CALLER_SAVE_REGISTERS[i]
-            );
+            )
+            .unwrap();
         }
 
         let body = &self.body.clone(); // borrow checker　が通してくれない...
 
         self.gen_statements(body, (1 + self.variable_offsets.len()) * 8);
 
-        println!("  mov rsp, rbp");
-        println!("  pop rbp");
-        println!("  ret");
+        writeln!(self.write, "  mov rsp, rbp").unwrap();
+        writeln!(self.write, "  pop rbp").unwrap();
+        writeln!(self.write, "  ret").unwrap();
 
         self.fresh_counter
     }
@@ -126,79 +134,79 @@ impl Function {
         match statement {
             Statement::Expr(expr) => {
                 self.gen_expr(expr, rsp_offset);
-                println!("  pop rax");
+                writeln!(self.write, "  pop rax").unwrap();
             }
             Statement::Return(expr) => {
                 self.gen_expr(expr, rsp_offset);
-                println!("  pop rax");
-                println!("  mov rsp, rbp");
-                println!("  pop rbp");
-                println!("  ret");
+                writeln!(self.write, "  pop rax").unwrap();
+                writeln!(self.write, "  mov rsp, rbp").unwrap();
+                writeln!(self.write, "  pop rbp").unwrap();
+                writeln!(self.write, "  ret").unwrap();
             }
             Statement::If(expr, then_statement) => {
                 let suffix = self.get_fresh_suffix();
 
                 self.gen_expr(expr, rsp_offset);
-                println!("  pop rax");
-                println!("  cmp rax, 0");
-                println!("  je .Lend{suffix}");
+                writeln!(self.write, "  pop rax").unwrap();
+                writeln!(self.write, "  cmp rax, 0").unwrap();
+                writeln!(self.write, "  je .Lend{suffix}").unwrap();
 
                 self.gen_statement(then_statement, rsp_offset);
 
-                println!(".Lend{suffix}:");
+                writeln!(self.write, ".Lend{suffix}:").unwrap();
             }
             Statement::IfElse(expr, then_statement, else_statement) => {
                 let suffix = self.get_fresh_suffix();
 
                 self.gen_expr(expr, rsp_offset);
-                println!("  pop rax");
-                println!("  cmp rax, 0");
-                println!("  je .Lelse{suffix}");
+                writeln!(self.write, "  pop rax").unwrap();
+                writeln!(self.write, "  cmp rax, 0").unwrap();
+                writeln!(self.write, "  je .Lelse{suffix}").unwrap();
 
                 self.gen_statement(then_statement, rsp_offset);
 
-                println!("  jmp .Lend{suffix}");
-                println!(".Lelse{suffix}:");
+                writeln!(self.write, "  jmp .Lend{suffix}").unwrap();
+                writeln!(self.write, ".Lelse{suffix}:").unwrap();
 
                 self.gen_statement(else_statement, rsp_offset);
 
-                println!(".Lend{suffix}:");
+                writeln!(self.write, ".Lend{suffix}:").unwrap();
             }
             Statement::While(expr, statement) => {
                 let suffix = self.get_fresh_suffix();
 
-                println!(".Lbegin{suffix}:");
+                writeln!(self.write, ".Lbegin{suffix}:").unwrap();
 
                 self.gen_expr(expr, rsp_offset);
-                println!("  pop rax");
-                println!("  cmp rax, 0");
-                println!("  je .Lend{suffix}");
+                writeln!(self.write, "  pop rax").unwrap();
+                writeln!(self.write, "  cmp rax, 0").unwrap();
+                writeln!(self.write, "  je .Lend{suffix}").unwrap();
 
                 self.gen_statement(statement, rsp_offset);
 
-                println!("  jmp .Lbegin{suffix}");
-                println!(".Lend{suffix}:");
+                writeln!(self.write, "  jmp .Lbegin{suffix}").unwrap();
+                writeln!(self.write, ".Lend{suffix}:").unwrap();
             }
             Statement::For(init, cond, update, body) => {
                 let suffix = self.get_fresh_suffix();
 
                 self.gen_expr(init, rsp_offset);
-                println!("  pop rax");
+                writeln!(self.write, "  pop rax").unwrap();
 
-                println!(".Lbegin{suffix}:");
+                writeln!(self.write, ".Lbegin{suffix}:").unwrap();
 
                 self.gen_expr(cond, rsp_offset);
-                println!("  pop rax");
-                println!("  cmp rax, 0");
-                println!("  je .Lend{suffix}");
+                writeln!(self.write, "  pop rax").unwrap();
+                writeln!(self.write, "  cmp rax, 0").unwrap();
+                writeln!(self.write, "  je .Lend{suffix}").unwrap();
 
                 self.gen_statement(body, rsp_offset);
 
                 self.gen_expr(update, rsp_offset);
-                println!("  pop rax");
+                writeln!(self.write, "  pop rax").unwrap();
 
-                println!("  jmp .Lbegin{suffix}");
-                println!(".Lend{suffix}:");
+                writeln!(self.write, "  jmp .Lbegin{suffix}").unwrap();
+                writeln!(self.write, ".Lend{suffix}:").unwrap();
             }
             Statement::Block(statements) => {
                 self.gen_statements(statements, rsp_offset);
@@ -207,10 +215,10 @@ impl Function {
     }
 
     // gen_expr 一回の呼び出しで rsp_offsetは 8 増える
-    fn gen_expr(&self, expr: &Expr, rsp_offset: usize) {
+    fn gen_expr(&mut self, expr: &Expr, rsp_offset: usize) {
         match expr {
             Expr::Num(n) => {
-                println!("  push {n}");
+                writeln!(self.write, "  push {n}").unwrap();
             }
             Expr::Add(lhs, rhs) => {
                 self.gen_binary_operation(lhs, rhs, rsp_offset, &["  add rax, rdi"]);
@@ -248,16 +256,16 @@ impl Function {
                 self.gen_lvalue(lhs);
                 self.gen_expr(rhs, rsp_offset + 8);
 
-                println!("  pop rdi");
-                println!("  pop rax");
-                println!("  mov [rax], rdi");
-                println!("  push rdi");
+                writeln!(self.write, "  pop rdi").unwrap();
+                writeln!(self.write, "  pop rax").unwrap();
+                writeln!(self.write, "  mov [rax], rdi").unwrap();
+                writeln!(self.write, "  push rdi").unwrap();
             }
             Expr::Variable(_) => {
                 self.gen_lvalue(expr);
-                println!("  pop rax");
-                println!("  mov rax, [rax]");
-                println!("  push rax");
+                writeln!(self.write, "  pop rax").unwrap();
+                writeln!(self.write, "  mov rax, [rax]").unwrap();
+                writeln!(self.write, "  push rax").unwrap();
             }
             Expr::FunctionCall(name, args) => {
                 for (i, arg) in args.iter().enumerate() {
@@ -265,39 +273,39 @@ impl Function {
                 }
 
                 for i in (0..args.len()).rev() {
-                    println!("  pop {}", SYSTEM_V_CALLER_SAVE_REGISTERS[i]);
+                    writeln!(self.write, "  pop {}", SYSTEM_V_CALLER_SAVE_REGISTERS[i]).unwrap();
                 }
 
                 if (rsp_offset % 16) != 0 {
-                    println!("  sub rsp, 8");
+                    writeln!(self.write, "  sub rsp, 8").unwrap();
                 }
 
-                println!("  call {name}");
+                writeln!(self.write, "  call {name}").unwrap();
 
                 if (rsp_offset % 16) != 0 {
-                    println!("  add rsp, 8");
+                    writeln!(self.write, "  add rsp, 8").unwrap();
                 }
 
-                println!("  push rax");
+                writeln!(self.write, "  push rax").unwrap();
             }
         }
     }
 
-    fn gen_binary_operation(&self, lhs: &Expr, rhs: &Expr, rsp_offset: usize, ops: &[&str]) {
+    fn gen_binary_operation(&mut self, lhs: &Expr, rhs: &Expr, rsp_offset: usize, ops: &[&str]) {
         self.gen_expr(lhs, rsp_offset);
         self.gen_expr(rhs, rsp_offset + 8);
 
-        println!("  pop rdi");
-        println!("  pop rax");
+        writeln!(self.write, "  pop rdi").unwrap();
+        writeln!(self.write, "  pop rax").unwrap();
 
         for op in ops.iter() {
-            println!("{op}");
+            writeln!(self.write, "{op}").unwrap();
         }
 
-        println!("  push rax");
+        writeln!(self.write, "  push rax").unwrap();
     }
 
-    fn gen_comparator(&self, lhs: &Expr, rhs: &Expr, rsp_offset: usize, op: &str) {
+    fn gen_comparator(&mut self, lhs: &Expr, rhs: &Expr, rsp_offset: usize, op: &str) {
         self.gen_binary_operation(
             lhs,
             rhs,
@@ -310,14 +318,14 @@ impl Function {
         );
     }
 
-    fn gen_lvalue(&self, expr: &Expr) {
+    fn gen_lvalue(&mut self, expr: &Expr) {
         match expr {
             Expr::Variable(name) => {
                 let offset = self.variable_offsets.get(name).expect("variable not found");
 
-                println!("  mov rax, rbp");
-                println!("  sub rax, {offset}");
-                println!("  push rax");
+                writeln!(self.write, "  mov rax, rbp").unwrap();
+                writeln!(self.write, "  sub rax, {offset}").unwrap();
+                writeln!(self.write, "  push rax").unwrap();
             }
             _ => todo!(),
         }
