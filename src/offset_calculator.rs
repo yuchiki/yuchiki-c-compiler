@@ -2,8 +2,15 @@ use std::collections::{hash_map, HashMap};
 
 use crate::{expr::Expr, statement::Statement};
 
-pub fn calculate_offset(statements: &Vec<Statement>) -> HashMap<String, usize> {
-    let identifiers = collect_identifiers_in_statements(statements);
+pub fn calculate_offset(
+    params: &Vec<String>,
+    statements: &Vec<Statement>,
+) -> HashMap<String, usize> {
+    let identifiers = [
+        &collect_identifiers_in_statements(statements)[..],
+        &params[..],
+    ]
+    .concat();
 
     let mut offset_map = HashMap::new();
     let mut offset = 8;

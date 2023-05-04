@@ -5,6 +5,7 @@ mod offset_calculator;
 mod parser;
 mod statement;
 mod token;
+mod top_level;
 fn main() {
     let raw_input = std::env::args().nth(1).expect("no arguments");
     let input = raw_input.chars().collect::<Vec<_>>();
@@ -13,15 +14,9 @@ fn main() {
 
     let mut parser_state = parser::ParserState::new(tokens, &raw_input);
 
-    let mut statements = vec![];
+    let program = parser_state.munch_program();
 
-    while !parser_state.fully_parsed() {
-        statements.push(parser_state.munch_statement());
-    }
+    let mut generator = generator::ProgramGenerator::new(program);
 
-    let variable_offsets = offset_calculator::calculate_offset(&statements);
-
-    let mut generator = generator::Generator::new(variable_offsets);
-
-    generator.gen(&statements);
+    generator.gen();
 }

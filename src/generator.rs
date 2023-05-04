@@ -1,44 +1,124 @@
 use std::collections::HashMap;
 
-use crate::{expr::Expr, statement::Statement};
+use crate::{expr::Expr, offset_calculator, statement::Statement, top_level::TopLevel};
 
-pub struct Generator {
+const SYSTEM_V_CALLER_SAVE_REGISTERS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
+
+pub struct ProgramGenerator {
+    fresh_counter: usize,
+    program: Vec<TopLevel>,
+}
+
+pub struct FunctionGenerator {
     variable_offsets: HashMap<String, usize>,
+    name: String,
+    params: Vec<String>,
+    body: Vec<Statement>,
+
+    // うまくmutable な composition　が作れなかったのでとりあえずfresh_counterを持たせている
+    // base_generator: &'a mut ProgramGenerator,
     fresh_counter: usize,
 }
 
-impl Generator {
-    pub fn new(variable_offsets: HashMap<String, usize>) -> Self {
+impl ProgramGenerator {
+    pub fn new(program: Vec<TopLevel>) -> Self {
         Self {
-            variable_offsets,
             fresh_counter: 0,
+            program,
+        }
+    }
+    pub fn gen(&mut self) {
+        println!(".intel_syntax noprefix");
+        println!("  push rbp");
+        println!("  mov rbp, rsp");
+
+        println!("  sub rsp, 8");
+
+        println!("  call main");
+
+        println!("  add rsp, 8");
+
+        println!("  mov rsp, rbp");
+        println!("  pop rbp");
+        println!("  ret");
+
+        let program = self.program.clone();
+
+        for top_level in program {
+            self.gen_top_level(&top_level);
         }
     }
 
+    fn gen_top_level(&mut self, top_level: &TopLevel) {
+        match top_level {
+            TopLevel::FunctionDefinition(name, params, statements) => {
+                let mut function_generator = FunctionGenerator::new(
+                    name.clone(),
+                    offset_calculator::calculate_offset(params, statements),
+                    params.clone(),
+                    statements.clone(),
+                    self.fresh_counter,
+                );
+                self.fresh_counter = function_generator.gen();
+            }
+        }
+    }
+}
+
+impl FunctionGenerator {
+    pub fn new(
+        name: String,
+        variable_offsets: HashMap<String, usize>,
+        params: Vec<String>,
+        body: Vec<Statement>,
+        fresh_counter: usize,
+    ) -> Self {
+        Self {
+            name,
+            variable_offsets,
+            params,
+            body,
+            fresh_counter,
+        }
+    }
+
+    // 一時的に自前のfresh_counter　を参照する設計に
     fn get_fresh_suffix(&mut self) -> String {
         self.fresh_counter += 1;
         format!("{}", self.fresh_counter)
     }
 
-    pub fn gen(&mut self, statements: &Vec<Statement>) {
-        println!(".intel_syntax noprefix");
-        println!(".globl main");
-        println!("main:");
+    fn gen(&mut self) -> usize {
+        let variable_offsets = offset_calculator::calculate_offset(&self.params, &self.body);
+
+        println!(".globl {}", self.name);
+        println!("{}:", self.name);
 
         println!("  push rbp");
         println!("  mov rbp, rsp");
         println!("  sub rsp, {}", self.variable_offsets.len() * 8);
 
-        self.gen_statements(statements, (1 + self.variable_offsets.len()) * 8);
+        for (i, param) in self.params.iter().enumerate() {
+            println!(
+                "  mov [rbp-{}], {}",
+                variable_offsets[param], SYSTEM_V_CALLER_SAVE_REGISTERS[i]
+            );
+        }
+
+        let body = &self.body.clone(); // borrow checker　が通してくれない...
+
+        self.gen_statements(body, (1 + self.variable_offsets.len()) * 8);
 
         println!("  mov rsp, rbp");
         println!("  pop rbp");
         println!("  ret");
+
+        self.fresh_counter
     }
 
     fn gen_statements(&mut self, statements: &Vec<Statement>, rsp_offset: usize) {
         for statement in statements {
-            self.gen_statement(statement, rsp_offset);
+            self.gen_statement(&statement, rsp_offset);
         }
     }
 
@@ -265,14 +345,12 @@ impl Generator {
                 println!("  push rax");
             }
             Expr::FunctionCall(name, args) => {
-                let system_v_caller_save_registers = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
-
                 for (i, arg) in args.iter().enumerate() {
                     self.gen_expr(arg, rsp_offset + i * 8);
                 }
 
                 for i in (0..args.len()).rev() {
-                    println!("  pop {}", system_v_caller_save_registers[i]);
+                    println!("  pop {}", SYSTEM_V_CALLER_SAVE_REGISTERS[i]);
                 }
 
                 if (rsp_offset % 16) != 0 {

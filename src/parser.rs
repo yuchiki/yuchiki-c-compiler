@@ -3,6 +3,7 @@ use crate::{
     lex::{PositionedToken, SourcePosition},
     statement::Statement,
     token::Token,
+    top_level::TopLevel,
 };
 
 pub struct ParserState<'a> {
@@ -21,6 +22,54 @@ impl<'a> ParserState<'a> {
 
     fn advance(&mut self, offset: usize) {
         self.tokens = &self.tokens[offset..]
+    }
+
+    pub fn munch_program(&mut self) -> Vec<TopLevel> {
+        let mut ans = vec![];
+        while !self.fully_parsed() {
+            ans.push(self.munch_top_level());
+        }
+        ans
+    }
+
+    pub fn munch_top_level(&mut self) -> TopLevel {
+        match self.tokens {
+            [(Token::Identifier(name), _), (Token::LParen, _), ..] => {
+                self.advance(2);
+                let mut args = vec![];
+                while self.tokens[0].0 != Token::RParen {
+                    if let Token::Identifier(arg) = &self.tokens[0].0 {
+                        self.advance(1);
+                        args.push(arg.clone());
+
+                        if self.tokens[0].0 == Token::RParen {
+                            break;
+                        } else if self.tokens[0].0 == Token::Comma {
+                            self.advance(1);
+                        } else {
+                            panic!("parse error at {:#?}", self.tokens)
+                        }
+                    } else {
+                        panic!("parse error at {:#?}", self.tokens)
+                    }
+                }
+
+                self.advance(1);
+
+                if self.tokens[0].0 != Token::LBrace {
+                    panic!("parse error")
+                }
+
+                self.advance(1);
+                let mut statements = vec![];
+                while self.tokens[0].0 != Token::RBrace {
+                    statements.push(self.munch_statement());
+                }
+                self.advance(1);
+                TopLevel::FunctionDefinition(name.clone(), args, statements)
+            }
+            _ => panic!("parse error"),
+        }
     }
 
     pub fn munch_statement(&mut self) -> Statement {
