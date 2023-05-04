@@ -1,3 +1,4 @@
+#![deny(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 mod expr;
 mod generator;
 mod lex;
@@ -12,11 +13,11 @@ fn main() {
 
     let tokens = &lex::tokenize(&input);
 
-    let mut parser_state = parser::ParserState::new(tokens, &raw_input);
+    let mut parser_state = parser::State::new(tokens, &raw_input);
 
     let program = parser_state.munch_program();
 
-    let mut generator = generator::ProgramGenerator::new(program);
+    let mut generator = generator::Program::new(program);
 
     generator.gen();
 }

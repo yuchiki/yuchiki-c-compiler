@@ -2,7 +2,14 @@
 name = "yuchiki-c-compiler"
 version = "0.1.0"
 edition = "2021"
+description = "A C subset compiler written in Rust."
+license-file = "LICENSE.txt"
+repository = "https://github.com/yuchiki/yuchiki-c-compiler"
+readme = "README.md"
+keywords = ["C-Compiler"]
+categories = ["compilers"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+ phf = { version = "0.11", features = ["macros"] }

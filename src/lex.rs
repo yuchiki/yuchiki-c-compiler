@@ -5,150 +5,67 @@ pub struct SourcePosition(pub usize);
 
 pub type PositionedToken = (Token, SourcePosition);
 
-pub fn tokenize(mut input: &[char]) -> Vec<PositionedToken> {
-    let mut ans = vec![];
+static TOKEN_MAP: [(&str, Token); 22] = [
+    ("+", Token::Plus),
+    ("-", Token::Minus),
+    ("*", Token::Asterisk),
+    ("/", Token::Slash),
+    ("(", Token::LParen),
+    (")", Token::RParen),
+    ("{", Token::LBrace),
+    ("}", Token::RBrace),
+    (",", Token::Comma),
+    ("==", Token::Equality),
+    ("!=", Token::Inequality),
+    ("<=", Token::LessThanOrEqual),
+    ("<", Token::LessThan),
+    (">=", Token::GreaterThanOrEqual),
+    (">", Token::GreaterThan),
+    (";", Token::Semicolon),
+    ("=", Token::Assign),
+    ("if", Token::If),
+    ("else", Token::Else),
+    ("while", Token::While),
+    ("for", Token::For),
+    ("return", Token::Return),
+];
+
+pub fn tokenize(input: &[char]) -> Vec<PositionedToken> {
+    let mut ans: Vec<PositionedToken> = vec![];
     let mut pos = SourcePosition(0);
 
-    while !input.is_empty() {
-        match input {
-            ['+', rest @ ..] => {
-                ans.push((Token::Plus, pos));
-                input = rest;
-                pos.0 += 1;
-            }
-            ['-', rest @ ..] => {
-                ans.push((Token::Minus, pos));
-                input = rest;
-                pos.0 += 1;
-            }
-            ['*', rest @ ..] => {
-                ans.push((Token::Asterisk, pos));
-                input = rest;
-                pos.0 += 1;
-            }
-            ['/', rest @ ..] => {
-                ans.push((Token::Slash, pos));
-                input = rest;
-                pos.0 += 1;
-            }
-            ['(', rest @ ..] => {
-                ans.push((Token::LParen, pos));
-                input = rest;
-                pos.0 += 1;
-            }
-            [')', rest @ ..] => {
-                ans.push((Token::RParen, pos));
-                input = rest;
-                pos.0 += 1;
-            }
-            ['=', '=', rest @ ..] => {
-                ans.push((Token::Equality, pos));
-                input = rest;
-                pos.0 += 2;
-            }
-            ['!', '=', rest @ ..] => {
-                ans.push((Token::Inequality, pos));
-                input = rest;
-                pos.0 += 2;
-            }
-            ['<', '=', rest @ ..] => {
-                ans.push((Token::LessThanOrEqual, pos));
-                input = rest;
-                pos.0 += 2;
-            }
-            ['>', '=', rest @ ..] => {
-                ans.push((Token::GreaterThanOrEqual, pos));
-                input = rest;
-                pos.0 += 2;
-            }
-            ['<', rest @ ..] => {
-                ans.push((Token::LessThan, pos));
-                input = rest;
-                pos.0 += 1;
-            }
-            ['>', rest @ ..] => {
-                ans.push((Token::GreaterThan, pos));
-                input = rest;
-                pos.0 += 1;
-            }
-            ['0'..='9', ..] => {
-                if let (rest, Some(num), char_count) = munch_int(input) {
-                    ans.push((Token::Num(num), pos));
-                    input = rest;
-                    pos.0 += char_count;
-                }
-            }
-            ['=', rest @ ..] => {
-                ans.push((Token::Assign, pos));
-                input = rest;
-                pos.0 += 1;
-            }
-            [';', rest @ ..] => {
-                ans.push((Token::Semicolon, pos));
-                input = rest;
-                pos.0 += 1;
-            }
-            [',', rest @ ..] => {
-                ans.push((Token::Comma, pos));
-                input = rest;
-                pos.0 += 1;
-            }
-            ['{', rest @ ..] => {
-                ans.push((Token::LBrace, pos));
-                input = rest;
-                pos.0 += 1;
-            }
-            ['}', rest @ ..] => {
-                ans.push((Token::RBrace, pos));
-                input = rest;
-                pos.0 += 1;
-            }
-            ['r', 'e', 't', 'u', 'r', 'n', rest @ ..] => {
-                ans.push((Token::Return, pos));
-                input = rest;
-                pos.0 += 6;
-            }
-            ['i', 'f', rest @ ..] => {
-                ans.push((Token::If, pos));
-                input = rest;
-                pos.0 += 2;
-            }
-            ['e', 'l', 's', 'e', rest @ ..] => {
-                ans.push((Token::Else, pos));
-                input = rest;
-                pos.0 += 4;
-            }
-            ['w', 'h', 'i', 'l', 'e', rest @ ..] => {
-                ans.push((Token::While, pos));
-                input = rest;
-                pos.0 += 5;
-            }
-            ['f', 'o', 'r', rest @ ..] => {
-                ans.push((Token::For, pos));
-                input = rest;
-                pos.0 += 3;
-            }
-            ['a'..='z', ..] => {
-                if let (rest, Some(identifier), char_count) = munch_identifier(input) {
-                    ans.push((Token::Identifier(identifier), pos));
-                    input = rest;
-                    pos.0 += char_count;
-                }
-            }
-            [' ' | '\t' | '\n', rest @ ..] => {
-                input = rest;
-                pos.0 += 1;
-            }
-            _ => {
-                panic!("tokenize error: {}", input.iter().collect::<String>());
-            }
+    while !input[pos.0..].is_empty() {
+        if let Some((length, token)) = TOKEN_MAP
+            .iter()
+            .find(|(key, _)| input[pos.0..].starts_with(&key.chars().collect::<Vec<char>>()))
+            .map(|(key, token)| (key.len(), token))
+        {
+            ans.push((token.clone(), pos));
+            pos.0 += length;
+        } else if input[pos.0].is_ascii_digit() {
+            let (Some(num), length) = munch_int(&input[pos.0..]) else {
+                panic!("invalid number: {}", input[0]);
+            };
+
+            ans.push((Token::Num(num), pos));
+            pos.0 += length;
+        } else if input[pos.0].is_ascii_alphabetic() {
+            let (Some(identifier), length) = munch_identifier(&input[pos.0..]) else {
+                panic!("invalid identifier: {}", input[0]);
+            };
+
+            ans.push((Token::Identifier(identifier), pos));
+            pos.0 += length;
+        } else if input[pos.0].is_ascii_whitespace() {
+            pos.0 += 1;
+        } else {
+            panic!("invalid character: at {}", input[pos.0]);
         }
     }
-
     ans
 }
 
-fn munch_int(mut input: &[char]) -> (&[char], Option<i32>, usize) {
+const fn munch_int(mut input: &[char]) -> (Option<i32>, usize) {
     let mut char_count = 0;
 
     if let ['0'..='9', ..] = input {
@@ -159,13 +76,13 @@ fn munch_int(mut input: &[char]) -> (&[char], Option<i32>, usize) {
             char_count += 1;
         }
 
-        (input, Some(ans), char_count)
+        (Some(ans), char_count)
     } else {
-        (input, None, 0)
+        (None, 0)
     }
 }
 
-fn munch_identifier(mut input: &[char]) -> (&[char], Option<String>, usize) {
+fn munch_identifier(mut input: &[char]) -> (Option<String>, usize) {
     let mut char_count = 0;
 
     if let ['a'..='z', ..] = input {
@@ -176,8 +93,8 @@ fn munch_identifier(mut input: &[char]) -> (&[char], Option<String>, usize) {
             char_count += 1;
         }
 
-        (input, Some(ans), char_count)
+        (Some(ans), char_count)
     } else {
-        (input, None, 0)
+        (None, 0)
     }
 }
