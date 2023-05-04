@@ -6,22 +6,22 @@ use crate::{
     top_level::TopLevel,
 };
 
-pub struct ParserState<'a> {
+pub struct State<'a> {
     tokens: &'a [PositionedToken],
     raw_input: &'a str,
 }
 
-impl<'a> ParserState<'a> {
-    pub fn new(tokens: &'a [PositionedToken], raw_input: &'a str) -> Self {
+impl<'a> State<'a> {
+    pub const fn new(tokens: &'a [PositionedToken], raw_input: &'a str) -> Self {
         Self { tokens, raw_input }
     }
 
-    pub fn fully_parsed(&self) -> bool {
+    pub const fn fully_parsed(&self) -> bool {
         self.tokens.is_empty()
     }
 
     fn advance(&mut self, offset: usize) {
-        self.tokens = &self.tokens[offset..]
+        self.tokens = &self.tokens[offset..];
     }
 
     pub fn munch_program(&mut self) -> Vec<TopLevel> {
@@ -56,9 +56,7 @@ impl<'a> ParserState<'a> {
 
                 self.advance(1);
 
-                if self.tokens[0].0 != Token::LBrace {
-                    panic!("parse error")
-                }
+                assert!(!(self.tokens[0].0 != Token::LBrace), "parse error");
 
                 self.advance(1);
                 let mut statements = vec![];
@@ -342,13 +340,13 @@ impl<'a> ParserState<'a> {
                         expr
                     }
                     [(token, pos), ..] => {
-                        self.error(&format!("expected ')', but got {:?}", token), *pos)
+                        self.error(&format!("expected ')', but got {token:?}"), *pos)
                     }
                     _ => panic!("かっこが閉じられていない"),
                 }
             }
             [(token, pos), ..] => {
-                self.error(&format!("expected primary but got {:?}", token), *pos);
+                self.error(&format!("expected primary but got {token:?}"), *pos);
             }
             [] => panic!("tokens are empty."),
         }
