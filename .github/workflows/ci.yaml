@@ -8,7 +8,7 @@ name: CI
 
 jobs:
   integration_tests:
-    name: Rust project
+    name: Integration-Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
