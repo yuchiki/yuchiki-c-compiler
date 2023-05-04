@@ -1,5 +1,5 @@
 use crate::expr::Expr;
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Statement {
     Expr(Expr),
     Return(Expr),
