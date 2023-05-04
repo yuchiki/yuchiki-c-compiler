@@ -16,7 +16,7 @@ pub struct Function<'a, W: Write> {
     params: Vec<String>,
     body: Vec<Statement>,
 
-    // うまくmutable な composition　が作れなかったのでとりあえずfresh_counterを持たせている
+    // TODO: うまくmutable な composition　が作れなかったのでとりあえずfresh_counterを持たせている
     // base_generator: &'a mut ProgramGenerator,
     fresh_counter: usize,
     write: &'a mut W,
@@ -88,7 +88,7 @@ impl<'a, W: Write> Function<'a, W> {
         }
     }
 
-    // 一時的に自前のfresh_counter　を参照する設計に
+    // TODO: 一時的に自前のfresh_counter　を参照する設計に
     fn get_fresh_suffix(&mut self) -> String {
         self.fresh_counter += 1;
         format!("{}", self.fresh_counter)
@@ -113,7 +113,7 @@ impl<'a, W: Write> Function<'a, W> {
             .unwrap();
         }
 
-        let body = &self.body.clone(); // borrow checker　が通してくれない...
+        let body = &self.body.clone(); // TODO: borrow checker　が通してくれない...
 
         self.gen_statements(body, (1 + self.variable_offsets.len()) * 8);
 
