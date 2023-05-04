@@ -15,7 +15,7 @@ pub fn process<W: Write>(raw_input: &str, mut write: W) {
 
     let tokens = &lex::tokenize(&input);
 
-    let mut parser_state = parser::State::new(tokens, raw_input);
+    let mut parser_state = parser::Parser::new(tokens, raw_input);
 
     let program = parser_state.munch_program();
 
@@ -23,3 +23,5 @@ pub fn process<W: Write>(raw_input: &str, mut write: W) {
 
     generator.gen();
 }
+
+// この関数は integration_test でテストされる。

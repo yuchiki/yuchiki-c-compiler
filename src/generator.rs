@@ -331,3 +331,5 @@ impl<'a, W: Write> Function<'a, W> {
         }
     }
 }
+
+// test しがたいので test は省略...
