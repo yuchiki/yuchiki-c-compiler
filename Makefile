@@ -1,7 +1,9 @@
 CFLAGS=-g -static
 
 
-test: src/main.rs
-	./test.sh
-
 .PHONY: test
+test:
+	cargo test
+
+clean :
+	rm -f tmpdir/tmp*
