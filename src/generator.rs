@@ -288,6 +288,15 @@ impl<'a, W: Write> Function<'a, W> {
 
                 writeln!(self.write, "  push rax").unwrap();
             }
+            Expr::Address(expr) => {
+                self.gen_lvalue(expr);
+            }
+            Expr::Dereference(expr) => {
+                self.gen_expr(expr, rsp_offset);
+                writeln!(self.write, "  pop rax").unwrap();
+                writeln!(self.write, "  mov rax, [rax]").unwrap();
+                writeln!(self.write, "  push rax").unwrap();
+            }
         }
     }
 

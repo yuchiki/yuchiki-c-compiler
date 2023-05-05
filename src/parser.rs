@@ -293,6 +293,14 @@ impl<'a> Parser<'a> {
                 self.advance(1);
                 Expr::Sub(Box::new(Expr::Num(0)), Box::new(self.munch_primary()))
             }
+            [(Token::Ampersand, _), ..] => {
+                self.advance(1);
+                Expr::Address(Box::new(self.munch_primary()))
+            }
+            [(Token::Asterisk, _), ..] => {
+                self.advance(1);
+                Expr::Dereference(Box::new(self.munch_primary()))
+            }
             _ => self.munch_primary(),
         }
     }
@@ -390,18 +398,20 @@ mod tests {
             (Token::GreaterThan, SourcePosition(23)),
             (Token::Num(7), SourcePosition(25)),
             (Token::GreaterThanOrEqual, SourcePosition(27)),
-            (Token::Num(8), SourcePosition(30)),
+            (Token::Ampersand, SourcePosition(0)),
+            (Token::Identifier("a".to_string()), SourcePosition(0)),
             (Token::LessThanOrEqual, SourcePosition(32)),
             (Token::Num(9), SourcePosition(35)),
             (Token::Equality, SourcePosition(37)),
             (Token::Num(10), SourcePosition(40)),
             (Token::Inequality, SourcePosition(42)),
+            (Token::Asterisk, SourcePosition(45)),
             (Token::Num(11), SourcePosition(45)),
         ];
 
         let mut parser = Parser::new(
             &tokens,
-            "b = +1 + 2 * 3 / (4-5) < a > 7 >= 8 <= 9 == 10 != 11;",
+            "b = +1 + 2 * 3 / (4-5) < a > 7 >= &a <= 9 == 10 != 11;",
         );
         let expr = parser.munch_expr();
         assert_eq!(
@@ -434,13 +444,13 @@ mod tests {
                                     )),
                                     Box::new(Expr::Num(7))
                                 )),
-                                Box::new(Expr::Num(8))
+                                Box::new(Expr::Address(Box::new(Expr::Variable("a".to_string()))))
                             )),
                             Box::new(Expr::Num(9)),
                         )),
                         Box::new(Expr::Num(10)),
                     )),
-                    Box::new(Expr::Num(11)),
+                    Box::new(Expr::Dereference(Box::new(Expr::Num(11))))
                 ))
             )
         );
