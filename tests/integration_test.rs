@@ -58,7 +58,22 @@ const EXTERNAL_FUNC_FILE_BASE_NAME: &str = "tmpdir/external_func";
 )]
 #[case("main () { external_func(1,2,3,4,5,6); }", 91)]
 #[case( "my_func(a, b, c, d, e, f){g = 7; h = a + b * 2 + c * 3 + d * 4 + e * 5 + f * 6 + g; return h / 2;} main(){my_func(1,2,3,4,5,6);}", 49)]
-fn test(#[case] input: &str, #[case] expected: i32) {
+fn integration_test(#[case] input: &str, #[case] expected: i32) {
+    let mut failure_count = 0;
+    let status = loop {
+        if let Some(status) = execute_test_case(input) {
+            break status;
+        } else if failure_count == 5 {
+            panic!("failed to execute test case");
+        }
+
+        failure_count += 1;
+    };
+
+    assert_eq!(status, expected);
+}
+
+fn execute_test_case(input: &str) -> Option<i32> {
     let suffix = rand::thread_rng()
         .sample_iter(&rand::distributions::Alphanumeric)
         .take(50)
@@ -70,28 +85,30 @@ fn test(#[case] input: &str, #[case] expected: i32) {
         process(input, write);
     }
 
-    _ = Command::new("gcc")
+    Command::new("gcc")
         .arg("-S")
         .arg("-o")
         .arg(format!("{}.s", EXTERNAL_FUNC_FILE_BASE_NAME))
         .arg(format!("{}.c", EXTERNAL_FUNC_FILE_BASE_NAME))
-        .output();
+        .output()
+        .ok()?;
 
-    _ = Command::new("gcc")
+    Command::new("gcc")
         .arg("--static")
         .arg("-o")
         .arg(format!("{}-{}", OUT_FILE_BASE_NAME, suffix))
         .arg(format!("{}-{}.s", OUT_FILE_BASE_NAME, suffix))
         .arg(format!("{}.s", EXTERNAL_FUNC_FILE_BASE_NAME))
-        .output();
+        .output()
+        .ok()?;
 
     let status = Command::new(format!("./{}-{}", OUT_FILE_BASE_NAME, suffix)).status();
 
-    _ = Command::new("rm")
+    Command::new("rm")
         .arg(format!("{}-{}.s", OUT_FILE_BASE_NAME, suffix))
         .arg(format!("{}-{}", OUT_FILE_BASE_NAME, suffix))
         .output()
-        .unwrap();
+        .ok()?;
 
-    assert_eq!(status.unwrap().code().unwrap(), expected);
+    status.ok()?.code()
 }

@@ -6,12 +6,12 @@ use crate::{
     top_level::TopLevel,
 };
 
-pub struct State<'a> {
+pub struct Parser<'a> {
     tokens: &'a [PositionedToken],
     raw_input: &'a str,
 }
 
-impl<'a> State<'a> {
+impl<'a> Parser<'a> {
     pub const fn new(tokens: &'a [PositionedToken], raw_input: &'a str) -> Self {
         Self { tokens, raw_input }
     }
@@ -360,5 +360,279 @@ impl<'a> State<'a> {
             input = self.raw_input
         );
         panic!("compile error")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_munch_expr() {
+        let tokens = vec![
+            (Token::Identifier("b".to_string()), SourcePosition(45)),
+            (Token::Assign, SourcePosition(47)),
+            (Token::Plus, SourcePosition(0)),
+            (Token::Num(1), SourcePosition(0)),
+            (Token::Plus, SourcePosition(2)),
+            (Token::Num(2), SourcePosition(4)),
+            (Token::Asterisk, SourcePosition(6)),
+            (Token::Num(3), SourcePosition(8)),
+            (Token::Slash, SourcePosition(10)),
+            (Token::LParen, SourcePosition(12)),
+            (Token::Minus, SourcePosition(13)),
+            (Token::Num(4), SourcePosition(13)),
+            (Token::Minus, SourcePosition(15)),
+            (Token::Num(5), SourcePosition(16)),
+            (Token::RParen, SourcePosition(17)),
+            (Token::LessThan, SourcePosition(19)),
+            (Token::Identifier("a".to_string()), SourcePosition(21)),
+            (Token::GreaterThan, SourcePosition(23)),
+            (Token::Num(7), SourcePosition(25)),
+            (Token::GreaterThanOrEqual, SourcePosition(27)),
+            (Token::Num(8), SourcePosition(30)),
+            (Token::LessThanOrEqual, SourcePosition(32)),
+            (Token::Num(9), SourcePosition(35)),
+            (Token::Equality, SourcePosition(37)),
+            (Token::Num(10), SourcePosition(40)),
+            (Token::Inequality, SourcePosition(42)),
+            (Token::Num(11), SourcePosition(45)),
+        ];
+
+        let mut parser = Parser::new(
+            &tokens,
+            "b = +1 + 2 * 3 / (4-5) < a > 7 >= 8 <= 9 == 10 != 11;",
+        );
+        let expr = parser.munch_expr();
+        assert_eq!(
+            expr,
+            Expr::Assign(
+                Box::new(Expr::Variable("b".to_string())),
+                Box::new(Expr::NotEqual(
+                    Box::new(Expr::Equal(
+                        Box::new(Expr::LessEqual(
+                            Box::new(Expr::GreaterEqual(
+                                Box::new(Expr::GreaterThan(
+                                    Box::new(Expr::LessThan(
+                                        Box::new(Expr::Add(
+                                            Box::new(Expr::Num(1)),
+                                            Box::new(Expr::Div(
+                                                Box::new(Expr::Mul(
+                                                    Box::new(Expr::Num(2)),
+                                                    Box::new(Expr::Num(3))
+                                                )),
+                                                Box::new(Expr::Sub(
+                                                    Box::new(Expr::Sub(
+                                                        Box::new(Expr::Num(0)),
+                                                        Box::new(Expr::Num(4))
+                                                    )),
+                                                    Box::new(Expr::Num(5))
+                                                ))
+                                            ))
+                                        )),
+                                        Box::new(Expr::Variable("a".to_string()))
+                                    )),
+                                    Box::new(Expr::Num(7))
+                                )),
+                                Box::new(Expr::Num(8))
+                            )),
+                            Box::new(Expr::Num(9)),
+                        )),
+                        Box::new(Expr::Num(10)),
+                    )),
+                    Box::new(Expr::Num(11)),
+                ))
+            )
+        );
+    }
+
+    #[test]
+    fn test_munch_statement_with_expr() {
+        let tokens = vec![
+            (Token::Identifier("a".to_string()), SourcePosition(0)),
+            (Token::Assign, SourcePosition(2)),
+            (Token::Num(1), SourcePosition(4)),
+            (Token::Semicolon, SourcePosition(5)),
+        ];
+
+        let mut parser = Parser::new(&tokens, "a = 1;");
+        let statement = parser.munch_statement();
+
+        assert_eq!(
+            statement,
+            Statement::Expr(Expr::Assign(
+                Box::new(Expr::Variable("a".to_string())),
+                Box::new(Expr::Num(1))
+            ))
+        );
+    }
+
+    #[test]
+    fn test_munch_statement_with_if() {
+        let tokens = vec![
+            (Token::If, SourcePosition(0)),
+            (Token::LParen, SourcePosition(2)),
+            (Token::Num(1), SourcePosition(3)),
+            (Token::RParen, SourcePosition(4)),
+            (Token::LBrace, SourcePosition(6)),
+            (Token::Num(1), SourcePosition(0)),
+            (Token::Semicolon, SourcePosition(1)),
+            (Token::Num(2), SourcePosition(2)),
+            (Token::Semicolon, SourcePosition(3)),
+            (Token::RBrace, SourcePosition(7)),
+        ];
+
+        let mut parser = Parser::new(&tokens, "if (1) {1; 2;}");
+        let statement = parser.munch_statement();
+
+        assert_eq!(
+            statement,
+            Statement::If(
+                Box::new(Expr::Num(1)),
+                Box::new(Statement::Block(vec![
+                    Statement::Expr(Expr::Num(1)),
+                    Statement::Expr(Expr::Num(2))
+                ]))
+            )
+        );
+    }
+
+    #[test]
+    fn test_munch_statement_with_for() {
+        let tokens = vec![
+            (Token::For, SourcePosition(0)),
+            (Token::LParen, SourcePosition(3)),
+            (Token::Identifier("i".to_string()), SourcePosition(4)),
+            (Token::Assign, SourcePosition(6)),
+            (Token::Num(0), SourcePosition(8)),
+            (Token::Semicolon, SourcePosition(9)),
+            (Token::Identifier("i".to_string()), SourcePosition(11)),
+            (Token::LessThan, SourcePosition(13)),
+            (Token::Num(10), SourcePosition(15)),
+            (Token::Semicolon, SourcePosition(17)),
+            (Token::Identifier("i".to_string()), SourcePosition(19)),
+            (Token::Assign, SourcePosition(21)),
+            (Token::Identifier("i".to_string()), SourcePosition(23)),
+            (Token::Plus, SourcePosition(25)),
+            (Token::Num(1), SourcePosition(27)),
+            (Token::RParen, SourcePosition(28)),
+            (Token::LBrace, SourcePosition(30)),
+            (Token::Num(1), SourcePosition(0)),
+            (Token::Semicolon, SourcePosition(1)),
+            (Token::Num(2), SourcePosition(2)),
+            (Token::Semicolon, SourcePosition(3)),
+            (Token::RBrace, SourcePosition(31)),
+        ];
+
+        let mut parser = Parser::new(&tokens, "for (i = 0; i < 10; i = i + 1) {1; 2;}");
+        let statement = parser.munch_statement();
+
+        assert_eq!(
+            statement,
+            Statement::For(
+                Box::new(Expr::Assign(
+                    Box::new(Expr::Variable("i".to_string())),
+                    Box::new(Expr::Num(0))
+                )),
+                Box::new(Expr::LessThan(
+                    Box::new(Expr::Variable("i".to_string())),
+                    Box::new(Expr::Num(10))
+                )),
+                Box::new(Expr::Assign(
+                    Box::new(Expr::Variable("i".to_string())),
+                    Box::new(Expr::Add(
+                        Box::new(Expr::Variable("i".to_string())),
+                        Box::new(Expr::Num(1))
+                    ))
+                )),
+                Box::new(Statement::Block(vec![
+                    Statement::Expr(Expr::Num(1)),
+                    Statement::Expr(Expr::Num(2))
+                ]))
+            )
+        );
+    }
+
+    #[test]
+    fn test_munch_statement_with_while() {
+        let tokens = vec![
+            (Token::While, SourcePosition(0)),
+            (Token::LParen, SourcePosition(5)),
+            (Token::Num(1), SourcePosition(6)),
+            (Token::RParen, SourcePosition(7)),
+            (Token::LBrace, SourcePosition(9)),
+            (Token::Num(1), SourcePosition(0)),
+            (Token::Semicolon, SourcePosition(1)),
+            (Token::Num(2), SourcePosition(2)),
+            (Token::Semicolon, SourcePosition(3)),
+            (Token::RBrace, SourcePosition(10)),
+        ];
+
+        let mut parser = Parser::new(&tokens, "while (1){1;2;}");
+        let statement = parser.munch_statement();
+
+        assert_eq!(
+            statement,
+            Statement::While(
+                Box::new(Expr::Num(1)),
+                Box::new(Statement::Block(vec![
+                    Statement::Expr(Expr::Num(1)),
+                    Statement::Expr(Expr::Num(2))
+                ]))
+            )
+        );
+    }
+
+    #[test]
+    fn test_munch_statement_with_block() {
+        let tokens = vec![
+            (Token::LBrace, SourcePosition(0)),
+            (Token::Num(1), SourcePosition(0)),
+            (Token::Semicolon, SourcePosition(0)),
+            (Token::Num(2), SourcePosition(0)),
+            (Token::Semicolon, SourcePosition(0)),
+            (Token::RBrace, SourcePosition(0)),
+        ];
+
+        let mut parser = Parser::new(&tokens, "{}");
+        let statement = parser.munch_statement();
+
+        assert_eq!(
+            statement,
+            Statement::Block(vec![
+                Statement::Expr(Expr::Num(1)),
+                Statement::Expr(Expr::Num(2))
+            ])
+        );
+    }
+
+    #[test]
+    fn test_munch_top_level() {
+        let tokens = vec![
+            (Token::Identifier("f".to_string()), SourcePosition(0)),
+            (Token::LParen, SourcePosition(0)),
+            (Token::Identifier("a".to_string()), SourcePosition(0)),
+            (Token::Comma, SourcePosition(0)),
+            (Token::Identifier("b".to_string()), SourcePosition(0)),
+            (Token::RParen, SourcePosition(0)),
+            (Token::LBrace, SourcePosition(0)),
+            (Token::Num(1), SourcePosition(0)),
+            (Token::Semicolon, SourcePosition(0)),
+            (Token::Num(2), SourcePosition(0)),
+            (Token::Semicolon, SourcePosition(0)),
+            (Token::RBrace, SourcePosition(0)),
+        ];
+
+        let mut parser = Parser::new(&tokens, "f(a, b) {}");
+        let top_level = parser.munch_top_level();
+
+        assert_eq!(
+            top_level,
+            TopLevel::FunctionDefinition(
+                "f".to_string(),
+                vec!["a".to_string(), "b".to_string()],
+                vec![Statement::Expr(Expr::Num(1)), Statement::Expr(Expr::Num(2))]
+            )
+        );
     }
 }

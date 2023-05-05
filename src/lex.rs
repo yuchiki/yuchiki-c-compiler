@@ -1,6 +1,6 @@
 use crate::token::Token;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SourcePosition(pub usize);
 
 pub type PositionedToken = (Token, SourcePosition);
@@ -96,5 +96,63 @@ fn munch_identifier(mut input: &[char]) -> (Option<String>, usize) {
         (Some(ans), char_count)
     } else {
         (None, 0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tokenize() {
+        let input =
+            "+ - * / ( ) { } , == != <= < >= > ; = if else while for return 12345abcedef12345";
+        let expected = vec![
+            (Token::Plus, SourcePosition(0)),
+            (Token::Minus, SourcePosition(2)),
+            (Token::Asterisk, SourcePosition(4)),
+            (Token::Slash, SourcePosition(6)),
+            (Token::LParen, SourcePosition(8)),
+            (Token::RParen, SourcePosition(10)),
+            (Token::LBrace, SourcePosition(12)),
+            (Token::RBrace, SourcePosition(14)),
+            (Token::Comma, SourcePosition(16)),
+            (Token::Equality, SourcePosition(18)),
+            (Token::Inequality, SourcePosition(21)),
+            (Token::LessThanOrEqual, SourcePosition(24)),
+            (Token::LessThan, SourcePosition(27)),
+            (Token::GreaterThanOrEqual, SourcePosition(29)),
+            (Token::GreaterThan, SourcePosition(32)),
+            (Token::Semicolon, SourcePosition(34)),
+            (Token::Assign, SourcePosition(36)),
+            (Token::If, SourcePosition(38)),
+            (Token::Else, SourcePosition(41)),
+            (Token::While, SourcePosition(46)),
+            (Token::For, SourcePosition(52)),
+            (Token::Return, SourcePosition(56)),
+            (Token::Num(12345), SourcePosition(63)),
+            (
+                Token::Identifier("abcedef12345".to_string()),
+                SourcePosition(68),
+            ),
+        ];
+        assert_eq!(tokenize(&input.chars().collect::<Vec<char>>()), expected);
+    }
+
+    #[test]
+    fn test_munch_int() {
+        let input = "12345";
+        let expected = (Some(12345), 5);
+        assert_eq!(munch_int(&input.chars().collect::<Vec<char>>()), expected);
+    }
+
+    #[test]
+    fn test_munch_identifier() {
+        let input = "abc123";
+        let expected = (Some("abc123".to_string()), 6);
+        assert_eq!(
+            munch_identifier(&input.chars().collect::<Vec<char>>()),
+            expected
+        );
     }
 }

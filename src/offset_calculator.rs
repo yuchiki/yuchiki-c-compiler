@@ -79,3 +79,84 @@ fn collect_identifiers_in_expr(expr: &Expr) -> Vec<String> {
             .collect::<Vec<String>>(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_calculate_offset() {
+        let params = vec!["a".to_string(), "b".to_string()];
+        let statements = vec![
+            Statement::Expr(Expr::Assign(
+                Box::new(Expr::Variable("a".to_string())),
+                Box::new(Expr::Num(1)),
+            )),
+            Statement::Expr(Expr::Assign(
+                Box::new(Expr::Variable("b".to_string())),
+                Box::new(Expr::Num(2)),
+            )),
+            Statement::Expr(Expr::Assign(
+                Box::new(Expr::Variable("c".to_string())),
+                Box::new(Expr::Num(3)),
+            )),
+        ];
+        let offset_map = calculate_offset(&params, &statements);
+        assert_eq!(offset_map["a"], 8);
+        assert_eq!(offset_map["b"], 16);
+        assert_eq!(offset_map["c"], 24);
+    }
+
+    #[test]
+    fn test_collect_identifiers_in_statements() {
+        let statements = vec![
+            Statement::Expr(Expr::Assign(
+                Box::new(Expr::Variable("a".to_string())),
+                Box::new(Expr::Num(1)),
+            )),
+            Statement::Expr(Expr::Assign(
+                Box::new(Expr::Variable("b".to_string())),
+                Box::new(Expr::Num(2)),
+            )),
+            Statement::Expr(Expr::Assign(
+                Box::new(Expr::Variable("c".to_string())),
+                Box::new(Expr::Num(3)),
+            )),
+        ];
+        let identifiers = collect_identifiers_in_statements(&statements);
+        assert_eq!(identifiers, vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn test_collect_identifiers_in_statement() {
+        let statement = Statement::Expr(Expr::Assign(
+            Box::new(Expr::Variable("a".to_string())),
+            Box::new(Expr::Num(1)),
+        ));
+        let identifiers = collect_identifiers_in_statement(&statement);
+        assert_eq!(identifiers, vec!["a"]);
+    }
+
+    #[test]
+    fn test_collect_identifiers_in_expr() {
+        let expr = Expr::FunctionCall(
+            "f".to_string(),
+            vec![
+                Expr::Variable("a".to_string()),
+                Expr::Mul(
+                    Box::new(Expr::Variable("b".to_string())),
+                    Box::new(Expr::Num(2)),
+                ),
+                Expr::Assign(
+                    Box::new(Expr::Assign(
+                        Box::new(Expr::Variable("c".to_string())),
+                        Box::new(Expr::Num(3)),
+                    )),
+                    Box::new(Expr::Variable("d".to_string())),
+                ),
+            ],
+        );
+        let identifiers = collect_identifiers_in_expr(&expr);
+        assert_eq!(identifiers, vec!["a", "b", "c", "d"]);
+    }
+}
