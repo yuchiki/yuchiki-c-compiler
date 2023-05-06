@@ -34,45 +34,48 @@ impl<'a> Parser<'a> {
     }
 
     pub fn munch_top_level(&mut self) -> TopLevel {
-        match self.tokens {
-            [(Token::Identifier(name), _), (Token::LParen, _), ..] => {
-                self.advance(2);
-                let mut args = vec![];
-                while self.tokens[0].0 != Token::RParen {
-                    if let Some(ty) = self.try_munch_type() {
-                        let (Token::Identifier(arg), _) = &self.tokens[0]
-                        else {
-                            panic!("parse error at {:#?}", self.tokens)
-                        };
-                        self.advance(1);
-                        args.push((arg.clone(), ty));
+        let Some(return_ty) = self.try_munch_type() else {
+                panic!("parse error at {:#?}, expected a type", self.tokens)
+            };
 
-                        if self.tokens[0].0 == Token::RParen {
-                            break;
-                        } else if self.tokens[0].0 == Token::Comma {
-                            self.advance(1);
-                        } else {
-                            panic!("parse error at {:#?}", self.tokens)
-                        }
-                    } else {
+        let [(Token::Identifier(name), _), (Token::LParen, _), ..] = self.tokens else {
+                panic!("parse error at {:#?}, expected a function name", self.tokens)
+            };
+
+        self.advance(2);
+        let mut args = vec![];
+        while self.tokens[0].0 != Token::RParen {
+            if let Some(ty) = self.try_munch_type() {
+                let (Token::Identifier(arg), _) = &self.tokens[0]
+                    else {
                         panic!("parse error at {:#?}", self.tokens)
-                    }
+                    };
+                self.advance(1);
+                args.push((arg.clone(), ty));
+
+                if self.tokens[0].0 == Token::RParen {
+                    break;
+                } else if self.tokens[0].0 == Token::Comma {
+                    self.advance(1);
+                } else {
+                    panic!("parse error at {:#?}", self.tokens)
                 }
-
-                self.advance(1);
-
-                assert!(!(self.tokens[0].0 != Token::LBrace), "parse error");
-
-                self.advance(1);
-                let mut statements = vec![];
-                while self.tokens[0].0 != Token::RBrace {
-                    statements.push(self.munch_statement());
-                }
-                self.advance(1);
-                TopLevel::FunctionDefinition(name.clone(), args, statements)
+            } else {
+                panic!("parse error at {:#?}", self.tokens)
             }
-            _ => panic!("parse error"),
         }
+
+        self.advance(1);
+
+        assert!(!(self.tokens[0].0 != Token::LBrace), "parse error");
+
+        self.advance(1);
+        let mut statements = vec![];
+        while self.tokens[0].0 != Token::RBrace {
+            statements.push(self.munch_statement());
+        }
+        self.advance(1);
+        TopLevel::FunctionDefinition(name.clone(), args, return_ty, statements)
     }
 
     pub fn munch_statement(&mut self) -> Statement {
@@ -679,6 +682,7 @@ mod tests {
     #[test]
     fn test_munch_top_level() {
         let tokens = vec![
+            (Token::Int, SourcePosition(0)),
             (Token::Identifier("f".to_string()), SourcePosition(0)),
             (Token::LParen, SourcePosition(0)),
             (Token::Int, SourcePosition(0)),
@@ -706,6 +710,7 @@ mod tests {
                     ("a".to_string(), Type::IntType),
                     ("b".to_string(), Type::IntType)
                 ],
+                Type::IntType,
                 vec![Statement::Expr(Expr::Num(1)), Statement::Expr(Expr::Num(2))]
             )
         );

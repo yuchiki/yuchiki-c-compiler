@@ -56,7 +56,7 @@ impl<'a, W: Write> Program<'a, W> {
 
     fn gen_top_level(&mut self, top_level: &TopLevel) {
         match top_level {
-            TopLevel::FunctionDefinition(name, params, statements) => {
+            TopLevel::FunctionDefinition(name, params, return_ty, statements) => {
                 let mut function_generator = Function::new(
                     name.clone(),
                     offset_calculator::calculate_offset(params, statements),
