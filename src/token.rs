@@ -25,4 +25,5 @@ pub enum Token {
     RBrace,
     Comma,
     Ampersand,
+    Int,
 }

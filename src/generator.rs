@@ -132,6 +132,7 @@ impl<'a, W: Write> Function<'a, W> {
 
     fn gen_statement(&mut self, statement: &Statement, rsp_offset: usize) {
         match statement {
+            Statement::VariableDeclaration(_) => {}
             Statement::Expr(expr) => {
                 self.gen_expr(expr, rsp_offset);
                 writeln!(self.write, "  pop rax").unwrap();
@@ -330,7 +331,9 @@ impl<'a, W: Write> Function<'a, W> {
     fn gen_lvalue(&mut self, expr: &Expr) {
         match expr {
             Expr::Variable(name) => {
-                let offset = self.variable_offsets.get(name).expect("variable not found");
+                let error_message = format!("variable {name} not found");
+
+                let offset = self.variable_offsets.get(name).expect(&error_message);
 
                 writeln!(self.write, "  mov rax, rbp").unwrap();
                 writeln!(self.write, "  sub rax, {offset}").unwrap();
