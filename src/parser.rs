@@ -4,6 +4,7 @@ use crate::{
     statement::Statement,
     token::Token,
     top_level::TopLevel,
+    types::Type,
 };
 
 pub struct Parser<'a> {
@@ -38,7 +39,11 @@ impl<'a> Parser<'a> {
                 self.advance(2);
                 let mut args = vec![];
                 while self.tokens[0].0 != Token::RParen {
-                    if let Token::Identifier(arg) = &self.tokens[0].0 {
+                    if self.try_munch_type().is_some() {
+                        let (Token::Identifier(arg), _) = &self.tokens[0]
+                        else {
+                            panic!("parse error at {:#?}", self.tokens)
+                        };
                         self.advance(1);
                         args.push(arg.clone());
 
@@ -72,29 +77,33 @@ impl<'a> Parser<'a> {
 
     pub fn munch_statement(&mut self) -> Statement {
         match self.tokens {
-            [(Token::Return, _), ..] => self.parse_return(),
-            [(Token::If, _), (Token::LParen, _), ..] => self.parse_if(),
-            [(Token::While, _), (Token::LParen, _), ..] => self.parse_while(),
-            [(Token::For, _), (Token::LParen, _), ..] => self.parse_for(),
-            [(Token::LBrace, _), ..] => self.parse_block(),
-            [(Token::Int, _), ..] => self.parse_variable_declaration(),
+            [(Token::Return, _), ..] => self.munch_return(),
+            [(Token::If, _), (Token::LParen, _), ..] => self.munch_if(),
+            [(Token::While, _), (Token::LParen, _), ..] => self.munch_while(),
+            [(Token::For, _), (Token::LParen, _), ..] => self.munch_for(),
+            [(Token::LBrace, _), ..] => self.munch_block(),
             _ => {
-                let expr = self.munch_expr();
-                match self.tokens {
-                    [(Token::Semicolon, _), ..] => {
-                        self.advance(1);
-                        Statement::Expr(expr)
-                    }
-                    _ => panic!("セミコロンがない"),
+                if let Some(ty) = self.try_munch_type() {
+                    self.munch_variable_declaration(ty)
+                } else {
+                    self.munch_expr_statement()
                 }
             }
         }
     }
 
-    fn parse_variable_declaration(&mut self) -> Statement {
-        assert!(self.tokens[0].0 == Token::Int);
-        self.advance(1);
+    fn munch_expr_statement(&mut self) -> Statement {
+        let expr = self.munch_expr();
+        match self.tokens {
+            [(Token::Semicolon, _), ..] => {
+                self.advance(1);
+                Statement::Expr(expr)
+            }
+            _ => panic!("セミコロンがない"),
+        }
+    }
 
+    fn munch_variable_declaration(&mut self, _: Type) -> Statement {
         let name = if let Token::Identifier(name) = &self.tokens[0].0 {
             name.clone()
         } else {
@@ -111,7 +120,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_block(&mut self) -> Statement {
+    fn munch_block(&mut self) -> Statement {
         assert!(self.tokens[0].0 == Token::LBrace);
         self.advance(1);
         let mut statements = Vec::new();
@@ -127,7 +136,7 @@ impl<'a> Parser<'a> {
         Statement::Block(statements)
     }
 
-    fn parse_for(&mut self) -> Statement {
+    fn munch_for(&mut self) -> Statement {
         assert!(self.tokens[0].0 == Token::For);
         assert!(self.tokens[1].0 == Token::LParen);
         self.advance(2);
@@ -158,7 +167,7 @@ impl<'a> Parser<'a> {
         )
     }
 
-    fn parse_while(&mut self) -> Statement {
+    fn munch_while(&mut self) -> Statement {
         assert!(self.tokens[0].0 == Token::While, "parse error");
         assert!(self.tokens[1].0 == Token::LParen, "parse error");
         self.advance(2);
@@ -173,7 +182,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_if(&mut self) -> Statement {
+    fn munch_if(&mut self) -> Statement {
         assert!(self.tokens[0].0 == Token::If, "parse error");
         assert!(self.tokens[1].0 == Token::LParen, "parse error");
         self.advance(2);
@@ -195,7 +204,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_return(&mut self) -> Statement {
+    fn munch_return(&mut self) -> Statement {
         assert!(self.tokens[0].0 == Token::Return, "parse error");
         self.advance(1);
         let statment = Statement::Return(self.munch_expr());
@@ -392,6 +401,23 @@ impl<'a> Parser<'a> {
             }
             [] => panic!("tokens are empty."),
         }
+    }
+
+    fn try_munch_type(&mut self) -> Option<Type> {
+        let mut ty = match self.tokens {
+            [(Token::Int, _), ..] => {
+                self.advance(1);
+                Some(Type::IntType)
+            }
+            _ => None,
+        }?;
+
+        while self.tokens[0].0 == Token::Asterisk {
+            self.advance(1);
+            ty = Type::PointerType(Box::new(ty));
+        }
+
+        Some(ty)
     }
 
     fn error(&self, error_message: &str, pos: SourcePosition) -> ! {
@@ -655,8 +681,10 @@ mod tests {
         let tokens = vec![
             (Token::Identifier("f".to_string()), SourcePosition(0)),
             (Token::LParen, SourcePosition(0)),
+            (Token::Int, SourcePosition(0)),
             (Token::Identifier("a".to_string()), SourcePosition(0)),
             (Token::Comma, SourcePosition(0)),
+            (Token::Int, SourcePosition(0)),
             (Token::Identifier("b".to_string()), SourcePosition(0)),
             (Token::RParen, SourcePosition(0)),
             (Token::LBrace, SourcePosition(0)),

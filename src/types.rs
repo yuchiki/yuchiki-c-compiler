@@ -1,4 +1,5 @@
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
-    Int,
+    IntType,
+    PointerType(Box<Type>),
 }
