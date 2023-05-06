@@ -27,4 +27,5 @@ pub enum Token {
     Ampersand,
     Int,
     Extern,
+    Sizeof,
 }

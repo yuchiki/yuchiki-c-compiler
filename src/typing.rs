@@ -198,6 +198,7 @@ impl FunctionTypist {
             Expr::FunctionCall(name, args) => self.type_function_call(name, args),
             Expr::Address(expr) => self.type_address(expr),
             Expr::Dereference(expr) => self.type_dereference(expr),
+            Expr::Sizeof(expr) => TypedExpr::Sizeof(Box::new(self.type_expr(expr))),
         }
     }
 

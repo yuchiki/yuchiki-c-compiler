@@ -80,6 +80,8 @@ const EXTERNAL_FUNC_FILE_BASE_NAME: &str = "tmpdir/external_func";
     "extern int *test_malloc_4(); int main() { int *a; a = test_malloc_4(); return *(a+(2*2-3)) ; }",
     2
 )]
+#[case::sizeof_int("int main() { return sizeof(1); }", 4)]
+#[case::sizeof_pointer("int main() { int a; return sizeof(&a); }", 8)]
 fn integration_test(#[case] input: &str, #[case] expected: i32) {
     let mut failure_count = 0;
     let status = loop {

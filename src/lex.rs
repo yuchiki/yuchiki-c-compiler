@@ -26,7 +26,7 @@ static TOKEN_MAP: [(&str, Token); 18] = [
     ("&", Token::Ampersand),
 ];
 
-static KEYWORDS: [(&str, Token); 7] = [
+static KEYWORDS: [(&str, Token); 8] = [
     ("if", Token::If),
     ("else", Token::Else),
     ("while", Token::While),
@@ -34,6 +34,7 @@ static KEYWORDS: [(&str, Token); 7] = [
     ("return", Token::Return),
     ("int", Token::Int),
     ("extern", Token::Extern),
+    ("sizeof", Token::Sizeof),
 ];
 
 pub fn tokenize(input: &[char]) -> Vec<PositionedToken> {
@@ -120,7 +121,7 @@ mod tests {
     #[test]
     fn test_tokenize() {
         let input =
-            "+ - * / ( ) { } , == != <= < >= > ; = & if else while for return 12345abcedef12345 int extern";
+            "+ - * / ( ) { } , == != <= < >= > ; = & if else while for return 12345abcedef12345 int extern sizeof";
         let expected = vec![
             (Token::Plus, SourcePosition(0)),
             (Token::Minus, SourcePosition(2)),
@@ -152,6 +153,7 @@ mod tests {
             ),
             (Token::Int, SourcePosition(83)),
             (Token::Extern, SourcePosition(87)),
+            (Token::Sizeof, SourcePosition(94)),
         ];
         assert_eq!(tokenize(&input.chars().collect::<Vec<char>>()), expected);
     }
