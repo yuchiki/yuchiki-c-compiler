@@ -43,7 +43,7 @@ impl Typist {
 
                 Some(function_typist.type_function())
             }
-            TopLevel::ExternalFunctionDeclaration(name, args, return_type) => None,
+            TopLevel::ExternalFunctionDeclaration(_, _, _) => None,
         }
     }
 }
