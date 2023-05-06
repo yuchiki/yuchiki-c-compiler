@@ -24,4 +24,5 @@ pub enum Token {
     LBrace,
     RBrace,
     Comma,
+    Ampersand,
 }

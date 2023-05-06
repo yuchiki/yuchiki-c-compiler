@@ -14,4 +14,6 @@ pub enum Expr {
     Assign(Box<Expr>, Box<Expr>),
     Variable(String),
     FunctionCall(String, Vec<Expr>),
+    Address(Box<Expr>),
+    Dereference(Box<Expr>),
 }

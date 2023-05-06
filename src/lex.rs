@@ -5,7 +5,7 @@ pub struct SourcePosition(pub usize);
 
 pub type PositionedToken = (Token, SourcePosition);
 
-static TOKEN_MAP: [(&str, Token); 22] = [
+static TOKEN_MAP: [(&str, Token); 23] = [
     ("+", Token::Plus),
     ("-", Token::Minus),
     ("*", Token::Asterisk),
@@ -23,6 +23,7 @@ static TOKEN_MAP: [(&str, Token); 22] = [
     (">", Token::GreaterThan),
     (";", Token::Semicolon),
     ("=", Token::Assign),
+    ("&", Token::Ampersand),
     ("if", Token::If),
     ("else", Token::Else),
     ("while", Token::While),
@@ -106,7 +107,7 @@ mod tests {
     #[test]
     fn test_tokenize() {
         let input =
-            "+ - * / ( ) { } , == != <= < >= > ; = if else while for return 12345abcedef12345";
+            "+ - * / ( ) { } , == != <= < >= > ; = & if else while for return 12345abcedef12345";
         let expected = vec![
             (Token::Plus, SourcePosition(0)),
             (Token::Minus, SourcePosition(2)),
@@ -125,15 +126,16 @@ mod tests {
             (Token::GreaterThan, SourcePosition(32)),
             (Token::Semicolon, SourcePosition(34)),
             (Token::Assign, SourcePosition(36)),
-            (Token::If, SourcePosition(38)),
-            (Token::Else, SourcePosition(41)),
-            (Token::While, SourcePosition(46)),
-            (Token::For, SourcePosition(52)),
-            (Token::Return, SourcePosition(56)),
-            (Token::Num(12345), SourcePosition(63)),
+            (Token::Ampersand, SourcePosition(38)),
+            (Token::If, SourcePosition(40)),
+            (Token::Else, SourcePosition(43)),
+            (Token::While, SourcePosition(48)),
+            (Token::For, SourcePosition(54)),
+            (Token::Return, SourcePosition(58)),
+            (Token::Num(12345), SourcePosition(65)),
             (
                 Token::Identifier("abcedef12345".to_string()),
-                SourcePosition(68),
+                SourcePosition(70),
             ),
         ];
         assert_eq!(tokenize(&input.chars().collect::<Vec<char>>()), expected);
