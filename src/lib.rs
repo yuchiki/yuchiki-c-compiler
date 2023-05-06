@@ -21,11 +21,10 @@ pub fn process<W: Write>(raw_input: &str, mut write: W) {
     let mut parser = parser::Parser::new(tokens, raw_input);
     let program = parser.munch_program();
     let function_type_environment = function_collector::collect_functions(&program);
-    let typist = typing::Typist::new(function_type_environment.clone());
+    let typist = typing::Typist::new(function_type_environment);
     let typed_program = typist.type_program(&program);
 
-    let mut generator =
-        generator::Program::new(typed_program, function_type_environment, &mut write);
+    let mut generator = generator::Program::new(typed_program, &mut write);
 
     generator.gen();
 }

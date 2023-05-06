@@ -112,6 +112,7 @@ impl FunctionTypist {
 
     fn type_return_statement(&self, expr: &Expr) -> TypedStatement {
         let typed_expr = self.type_expr(expr);
+        assert_eq!(self.function_return_type, typed_expr.get_type());
         TypedStatement::Return(typed_expr)
     }
 

@@ -3,31 +3,20 @@ use std::{
     io::Write,
 };
 
-use crate::{
-    expr::TypedExpr,
-    statement::TypedStatement,
-    top_level::TypedTopLevel,
-    types::{FunctionType, Type},
-};
+use crate::{expr::TypedExpr, statement::TypedStatement, top_level::TypedTopLevel, types::Type};
 
 const SYSTEM_V_CALLER_SAVE_REGISTERS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
 
 pub struct Program<'a, W: Write> {
     fresh_counter: usize,
     program: Vec<TypedTopLevel>,
-    function_type_environment: HashMap<String, FunctionType>,
     write: &'a mut W,
 }
 
 impl<'a, W: Write> Program<'a, W> {
-    pub fn new(
-        program: Vec<TypedTopLevel>,
-        function_type_environment: HashMap<String, FunctionType>,
-        write: &'a mut W,
-    ) -> Self {
+    pub fn new(program: Vec<TypedTopLevel>, write: &'a mut W) -> Self {
         Self {
             fresh_counter: 0,
-            function_type_environment,
             program,
             write,
         }
@@ -59,17 +48,16 @@ impl<'a, W: Write> Program<'a, W> {
             TypedTopLevel::FunctionDefinition(
                 name,
                 params,
-                ret_ty,
+                _,
                 statements,
                 variable_type_environment,
             ) => {
                 let mut function_generator = Function::new(
                     name.clone(),
-                    variable_type_environment.clone(),
+                    variable_type_environment,
                     params.clone(),
                     statements.clone(),
                     self.fresh_counter,
-                    self.function_type_environment.clone(),
                     self.write,
                 );
                 self.fresh_counter = function_generator.gen();
@@ -79,7 +67,6 @@ impl<'a, W: Write> Program<'a, W> {
 }
 
 pub struct Function<'a, W: Write> {
-    variable_type_environment: HashMap<String, Type>,
     variable_offsets: HashMap<String, usize>,
     variables_offset: usize,
     name: String,
@@ -89,32 +76,27 @@ pub struct Function<'a, W: Write> {
     // TODO: うまくmutable な composition　が作れなかったのでとりあえずfresh_counterを持たせている
     // base_generator: &'a mut ProgramGenerator,
     fresh_counter: usize,
-
-    function_infos: HashMap<String, FunctionType>,
     write: &'a mut W,
 }
 
 impl<'a, W: Write> Function<'a, W> {
     pub fn new(
         name: String,
-        variable_type_environment: HashMap<String, Type>,
+        variable_type_environment: &HashMap<String, Type>,
         params: Vec<(String, Type)>,
         body: Vec<TypedStatement>,
         fresh_counter: usize,
-        function_infos: HashMap<String, FunctionType>,
         write: &'a mut W,
     ) -> Self {
         let (variable_offsets, variables_offset) =
-            Self::calc_variable_offset(&params, &variable_type_environment);
+            Self::calc_variable_offset(variable_type_environment);
         Self {
-            variable_type_environment,
             variable_offsets,
             variables_offset,
             name,
             params,
             body,
             fresh_counter,
-            function_infos,
             write,
         }
     }
@@ -126,7 +108,6 @@ impl<'a, W: Write> Function<'a, W> {
     }
 
     fn calc_variable_offset(
-        params: &[(String, Type)],
         local_variable_type_environment: &HashMap<String, Type>,
     ) -> (HashMap<String, usize>, usize) {
         let mut offset_map = HashMap::new();
