@@ -39,13 +39,13 @@ impl<'a> Parser<'a> {
                 self.advance(2);
                 let mut args = vec![];
                 while self.tokens[0].0 != Token::RParen {
-                    if self.try_munch_type().is_some() {
+                    if let Some(ty) = self.try_munch_type() {
                         let (Token::Identifier(arg), _) = &self.tokens[0]
                         else {
                             panic!("parse error at {:#?}", self.tokens)
                         };
                         self.advance(1);
-                        args.push(arg.clone());
+                        args.push((arg.clone(), ty));
 
                         if self.tokens[0].0 == Token::RParen {
                             break;
@@ -103,7 +103,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn munch_variable_declaration(&mut self, _: Type) -> Statement {
+    fn munch_variable_declaration(&mut self, ty: Type) -> Statement {
         let name = if let Token::Identifier(name) = &self.tokens[0].0 {
             name.clone()
         } else {
@@ -114,7 +114,7 @@ impl<'a> Parser<'a> {
         match self.tokens {
             [(Token::Semicolon, _), ..] => {
                 self.advance(1);
-                Statement::VariableDeclaration(name)
+                Statement::VariableDeclaration(name, ty)
             }
             _ => panic!("セミコロンがない: {:?}", self.tokens[0].0),
         }
@@ -702,7 +702,10 @@ mod tests {
             top_level,
             TopLevel::FunctionDefinition(
                 "f".to_string(),
-                vec!["a".to_string(), "b".to_string()],
+                vec![
+                    ("a".to_string(), Type::IntType),
+                    ("b".to_string(), Type::IntType)
+                ],
                 vec![Statement::Expr(Expr::Num(1)), Statement::Expr(Expr::Num(2))]
             )
         );

@@ -1,6 +1,8 @@
 use std::{collections::HashMap, io::Write};
 
-use crate::{expr::Expr, offset_calculator, statement::Statement, top_level::TopLevel};
+use crate::{
+    expr::Expr, offset_calculator, statement::Statement, top_level::TopLevel, types::Type,
+};
 
 const SYSTEM_V_CALLER_SAVE_REGISTERS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
 
@@ -11,9 +13,9 @@ pub struct Program<'a, W: Write> {
 }
 
 pub struct Function<'a, W: Write> {
-    variable_offsets: HashMap<String, usize>,
+    variable_offsets: HashMap<String, (usize, Type)>,
     name: String,
-    params: Vec<String>,
+    params: Vec<(String, Type)>,
     body: Vec<Statement>,
 
     // TODO: うまくmutable な composition　が作れなかったのでとりあえずfresh_counterを持たせている
@@ -72,8 +74,8 @@ impl<'a, W: Write> Program<'a, W> {
 impl<'a, W: Write> Function<'a, W> {
     pub fn new(
         name: String,
-        variable_offsets: HashMap<String, usize>,
-        params: Vec<String>,
+        variable_offsets: HashMap<String, (usize, Type)>,
+        params: Vec<(String, Type)>,
         body: Vec<Statement>,
         fresh_counter: usize,
         write: &'a mut W,
@@ -108,7 +110,7 @@ impl<'a, W: Write> Function<'a, W> {
             writeln!(
                 self.write,
                 "  mov [rbp-{}], {}",
-                variable_offsets[param], SYSTEM_V_CALLER_SAVE_REGISTERS[i]
+                variable_offsets[&param.0].0, SYSTEM_V_CALLER_SAVE_REGISTERS[i]
             )
             .unwrap();
         }
@@ -132,7 +134,7 @@ impl<'a, W: Write> Function<'a, W> {
 
     fn gen_statement(&mut self, statement: &Statement, rsp_offset: usize) {
         match statement {
-            Statement::VariableDeclaration(_) => {}
+            Statement::VariableDeclaration(_, _) => {}
             Statement::Expr(expr) => {
                 self.gen_expr(expr, rsp_offset);
                 writeln!(self.write, "  pop rax").unwrap();
@@ -333,7 +335,7 @@ impl<'a, W: Write> Function<'a, W> {
             Expr::Variable(name) => {
                 let error_message = format!("variable {name} not found");
 
-                let offset = self.variable_offsets.get(name).expect(&error_message);
+                let (offset, _) = self.variable_offsets.get(name).expect(&error_message);
 
                 writeln!(self.write, "  mov rax, rbp").unwrap();
                 writeln!(self.write, "  sub rax, {offset}").unwrap();

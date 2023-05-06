@@ -1,30 +1,33 @@
 use std::collections::{hash_map, HashMap};
 
-use crate::statement::Statement;
+use crate::{statement::Statement, types::Type};
 
-pub fn calculate_offset(params: &[String], statements: &[Statement]) -> HashMap<String, usize> {
+pub fn calculate_offset(
+    params: &[(String, Type)],
+    statements: &[Statement],
+) -> HashMap<String, (usize, Type)> {
     let identifiers = [params, &collect_identifiers_in_statements(statements)[..]].concat();
 
     let mut offset_map = HashMap::new();
     let mut offset = 8;
-    for variable in identifiers {
+    for (variable, ty) in identifiers {
         if let hash_map::Entry::Vacant(e) = offset_map.entry(variable) {
-            e.insert(offset);
+            e.insert((offset, ty));
             offset += 8;
         }
     }
     offset_map
 }
 
-fn collect_identifiers_in_statements(statements: &[Statement]) -> Vec<String> {
-    let mut identifiers = vec![];
+fn collect_identifiers_in_statements(statements: &[Statement]) -> Vec<(String, Type)> {
+    let mut variable = vec![];
     for statement in statements {
-        identifiers.append(&mut collect_identifiers_in_statement(statement));
+        variable.append(&mut collect_identifiers_in_statement(statement));
     }
-    identifiers
+    variable
 }
 
-fn collect_identifiers_in_statement(statement: &Statement) -> Vec<String> {
+fn collect_identifiers_in_statement(statement: &Statement) -> Vec<(String, Type)> {
     match statement {
         Statement::Expr(_) | Statement::Return(_) => vec![],
         Statement::If(_, then) => [&collect_identifiers_in_statement(then)[..]].concat(),
@@ -37,7 +40,7 @@ fn collect_identifiers_in_statement(statement: &Statement) -> Vec<String> {
             [&collect_identifiers_in_statement(body)[..]].concat()
         }
         Statement::Block(statements) => collect_identifiers_in_statements(statements),
-        Statement::VariableDeclaration(name) => vec![name.clone()],
+        Statement::VariableDeclaration(name, ty) => vec![(name.clone(), ty.clone())],
     }
 }
 
@@ -49,7 +52,10 @@ mod tests {
 
     #[test]
     fn test_calculate_offset() {
-        let params = vec!["a".to_string(), "b".to_string()];
+        let params = vec![
+            ("a".to_string(), Type::PointerType(Box::new(Type::IntType))),
+            ("b".to_string(), Type::IntType),
+        ];
         let statements = vec![
             Statement::Expr(Expr::Assign(
                 Box::new(Expr::Variable("a".to_string())),
@@ -59,12 +65,15 @@ mod tests {
                 Box::new(Expr::Variable("b".to_string())),
                 Box::new(Expr::Num(2)),
             )),
-            Statement::VariableDeclaration("c".to_string()),
+            Statement::VariableDeclaration("c".to_string(), Type::IntType),
         ];
         let offset_map = calculate_offset(&params, &statements);
-        assert_eq!(offset_map["a"], 8);
-        assert_eq!(offset_map["b"], 16);
-        assert_eq!(offset_map["c"], 24);
+        assert_eq!(
+            offset_map["a"],
+            (8, Type::PointerType(Box::new(Type::IntType)))
+        );
+        assert_eq!(offset_map["b"], (16, Type::IntType));
+        assert_eq!(offset_map["c"], (24, Type::IntType));
     }
 
     #[test]
@@ -74,9 +83,9 @@ mod tests {
                 Box::new(Expr::Variable("a".to_string())),
                 Box::new(Expr::Num(1)),
             )),
-            Statement::VariableDeclaration("b".to_string()),
+            Statement::VariableDeclaration("b".to_string(), Type::IntType),
         ];
         let identifiers = collect_identifiers_in_statements(&statements);
-        assert_eq!(identifiers, vec!["b",]);
+        assert_eq!(identifiers, vec![("b".to_string(), Type::IntType)]);
     }
 }
