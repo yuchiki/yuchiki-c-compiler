@@ -16,6 +16,7 @@ pub enum Expr {
     FunctionCall(String, Vec<Expr>),
     Address(Box<Expr>),
     Dereference(Box<Expr>),
+    Sizeof(Box<Expr>),
 }
 
 use crate::types::Type;
@@ -38,6 +39,7 @@ pub enum TypedExpr {
     FunctionCall(Type, String, Vec<TypedExpr>),
     Address(Type, Box<TypedExpr>),
     Dereference(Type, Box<TypedExpr>),
+    Sizeof(Box<TypedExpr>),
 }
 
 impl TypedExpr {
@@ -58,7 +60,8 @@ impl TypedExpr {
             | Self::Equal(_, _)
             | Self::NotEqual(_, _)
             | Self::GreaterThan(_, _)
-            | Self::GreaterEqual(_, _) => Type::IntType,
+            | Self::GreaterEqual(_, _)
+            | Self::Sizeof(_) => Type::IntType,
         }
     }
 }

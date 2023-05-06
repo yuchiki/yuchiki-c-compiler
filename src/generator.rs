@@ -322,6 +322,12 @@ impl<'a, W: Write> Function<'a, W> {
                 writeln!(self.write, "  mov rax, [rax]").unwrap();
                 writeln!(self.write, "  push rax").unwrap();
             }
+            TypedExpr::Sizeof(expr) => {
+                self.gen_expr(expr, rsp_offset);
+                writeln!(self.write, "  pop rax").unwrap();
+                writeln!(self.write, "  mov rax, {}", expr.get_type().get_size()).unwrap();
+                writeln!(self.write, "  push rax").unwrap();
+            }
         }
     }
 

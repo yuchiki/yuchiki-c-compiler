@@ -428,6 +428,15 @@ impl<'a> Parser<'a> {
 
                 Expr::FunctionCall(name.clone(), args)
             }
+            [(Token::Sizeof, _), (Token::LParen, _), ..] => {
+                self.advance(2);
+                let expr = self.munch_expr();
+
+                assert_eq!(self.tokens[0].0, Token::RParen,);
+                self.advance(1);
+
+                Expr::Sizeof(Box::new(expr))
+            }
             [(Token::Identifier(name), _), ..] => {
                 self.advance(1);
                 Expr::Variable(name.clone())
@@ -515,13 +524,16 @@ mod tests {
             (Token::Equality, SourcePosition(37)),
             (Token::Num(10), SourcePosition(40)),
             (Token::Inequality, SourcePosition(42)),
-            (Token::Asterisk, SourcePosition(45)),
-            (Token::Num(11), SourcePosition(45)),
+            (Token::Sizeof, SourcePosition(45)),
+            (Token::LParen, SourcePosition(51)),
+            (Token::Asterisk, SourcePosition(46)),
+            (Token::Identifier("b".to_string()), SourcePosition(45)),
+            (Token::RParen, SourcePosition(47)),
         ];
 
         let mut parser = Parser::new(
             &tokens,
-            "b = +1 + 2 * 3 / (4-5) < a > 7 >= &a <= 9 == 10 != 11;",
+            "b = +1 + 2 * 3 / (4-5) < a > 7 >= &a <= 9 == 10 != sizeof(*b);",
         );
         let expr = parser.munch_expr();
         assert_eq!(
@@ -560,7 +572,9 @@ mod tests {
                         )),
                         Box::new(Expr::Num(10)),
                     )),
-                    Box::new(Expr::Dereference(Box::new(Expr::Num(11))))
+                    Box::new(Expr::Sizeof(Box::new(Expr::Dereference(Box::new(
+                        Expr::Variable("b".to_string())
+                    )))))
                 ))
             )
         );
