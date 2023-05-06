@@ -112,10 +112,10 @@ impl<'a, W: Write> Function<'a, W> {
     ) -> (HashMap<String, usize>, usize) {
         let mut offset_map = HashMap::new();
         let mut offset = 8;
-        for (variable, ty) in local_variable_type_environment {
+        for variable in local_variable_type_environment.keys() {
             if let hash_map::Entry::Vacant(e) = offset_map.entry(variable.clone()) {
                 e.insert(offset);
-                offset += ty.get_size();
+                offset += 8;
             }
         }
         (offset_map, offset)
