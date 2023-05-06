@@ -7,6 +7,7 @@ mod parser;
 mod statement;
 mod token;
 mod top_level;
+mod types;
 
 use std::io::Write;
 
