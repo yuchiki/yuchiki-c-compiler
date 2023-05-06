@@ -5,7 +5,7 @@ pub struct SourcePosition(pub usize);
 
 pub type PositionedToken = (Token, SourcePosition);
 
-static TOKEN_MAP: [(&str, Token); 24] = [
+static TOKEN_MAP: [(&str, Token); 18] = [
     ("+", Token::Plus),
     ("-", Token::Minus),
     ("*", Token::Asterisk),
@@ -24,12 +24,16 @@ static TOKEN_MAP: [(&str, Token); 24] = [
     (";", Token::Semicolon),
     ("=", Token::Assign),
     ("&", Token::Ampersand),
+];
+
+static KEYWORDS: [(&str, Token); 7] = [
     ("if", Token::If),
     ("else", Token::Else),
     ("while", Token::While),
     ("for", Token::For),
     ("return", Token::Return),
     ("int", Token::Int),
+    ("extern", Token::Extern),
 ];
 
 pub fn tokenize(input: &[char]) -> Vec<PositionedToken> {
@@ -51,12 +55,8 @@ pub fn tokenize(input: &[char]) -> Vec<PositionedToken> {
 
             ans.push((Token::Num(num), pos));
             pos.0 += length;
-        } else if input[pos.0].is_ascii_alphabetic() {
-            let (Some(identifier), length) = munch_identifier(&input[pos.0..]) else {
-                panic!("invalid identifier: {}", input[0]);
-            };
-
-            ans.push((Token::Identifier(identifier), pos));
+        } else if let Some((token, length)) = try_lex_keyword_or_identifier(&input[pos.0..]) {
+            ans.push((token, pos));
             pos.0 += length;
         } else if input[pos.0].is_ascii_whitespace() {
             pos.0 += 1;
@@ -65,6 +65,18 @@ pub fn tokenize(input: &[char]) -> Vec<PositionedToken> {
         }
     }
     ans
+}
+
+fn try_lex_keyword_or_identifier(input: &[char]) -> Option<(Token, usize)> {
+    if let (Some(identifier), usize) = munch_identifier(input) {
+        KEYWORDS
+            .iter()
+            .find(|(key, _)| key == &identifier)
+            .map(|(_, token)| (token.clone(), usize))
+            .or(Some((Token::Identifier(identifier), usize)))
+    } else {
+        None
+    }
 }
 
 const fn munch_int(mut input: &[char]) -> (Option<i32>, usize) {
@@ -108,7 +120,7 @@ mod tests {
     #[test]
     fn test_tokenize() {
         let input =
-            "+ - * / ( ) { } , == != <= < >= > ; = & if else while for return 12345abcedef12345 int";
+            "+ - * / ( ) { } , == != <= < >= > ; = & if else while for return 12345abcedef12345 int extern";
         let expected = vec![
             (Token::Plus, SourcePosition(0)),
             (Token::Minus, SourcePosition(2)),
@@ -139,6 +151,7 @@ mod tests {
                 SourcePosition(70),
             ),
             (Token::Int, SourcePosition(83)),
+            (Token::Extern, SourcePosition(87)),
         ];
         assert_eq!(tokenize(&input.chars().collect::<Vec<char>>()), expected);
     }

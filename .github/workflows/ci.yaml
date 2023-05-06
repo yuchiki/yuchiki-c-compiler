@@ -1,8 +1,8 @@
 on: 
   push:
-    branches: [ int main ()]
+    branches: [ main ]
   pull_request:
-    branches: [ int main ()]
+    branches: [ main ]
 
 name: CI
 

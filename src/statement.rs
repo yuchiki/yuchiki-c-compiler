@@ -1,4 +1,7 @@
-use crate::{expr::Expr, types::Type};
+use crate::{
+    expr::{Expr, TypedExpr},
+    types::Type,
+};
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Statement {
     Expr(Expr),
@@ -8,5 +11,22 @@ pub enum Statement {
     While(Box<Expr>, Box<Statement>),
     For(Box<Expr>, Box<Expr>, Box<Expr>, Box<Statement>),
     Block(Vec<Statement>),
+    VariableDeclaration(String, Type),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum TypedStatement {
+    Expr(TypedExpr),
+    Return(TypedExpr),
+    If(Box<TypedExpr>, Box<TypedStatement>),
+    IfElse(Box<TypedExpr>, Box<TypedStatement>, Box<TypedStatement>),
+    While(Box<TypedExpr>, Box<TypedStatement>),
+    For(
+        Box<TypedExpr>,
+        Box<TypedExpr>,
+        Box<TypedExpr>,
+        Box<TypedStatement>,
+    ),
+    Block(Vec<TypedStatement>),
     VariableDeclaration(String, Type),
 }

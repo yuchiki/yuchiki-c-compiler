@@ -26,4 +26,5 @@ pub enum Token {
     Comma,
     Ampersand,
     Int,
+    Extern,
 }

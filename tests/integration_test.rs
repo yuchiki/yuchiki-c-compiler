@@ -62,11 +62,23 @@ const EXTERNAL_FUNC_FILE_BASE_NAME: &str = "tmpdir/external_func";
     "int main () {int i; int sum;  i = sum = 0; while(i <= 10) { sum = sum + i; i = i + 1; } return sum; }",
     55
 )]
-#[case::external_function_call("int main () { external_func(1,2,3,4,5,6); }", 91)]
+#[case::external_function_call("extern int external_func(int a, int b, int c, int d, int e, int f); int main () { external_func(1,2,3,4,5,6); }", 91)]
 #[case::function_call( "int my_func(int a, int b, int c, int d, int e, int f){int g; int h; g = 7; h = a + b * 2 + c * 3 + d * 4 + e * 5 + f * 6 + g; return h / 2;} int main(){my_func(1,2,3,4,5,6);}", 49)]
 #[case::pointer_dereference(
     "int main () {int a; a = 5; return f(&a); return a; } int f (int *pointer) { *pointer = *pointer + 5 ; } ",
     10
+)]
+#[case::pointer_addition(
+    "extern int *test_malloc_4(); int main() { int *a; a = test_malloc_4(); return *(a + 2); }",
+    3
+)]
+#[case::pointer_subtraction(
+    "extern int *test_malloc_4(); int main() { int *a; a = test_malloc_4() + 2; return *(a-1); }",
+    2
+)]
+#[case::pointer_complicated_calculation(
+    "extern int *test_malloc_4(); int main() { int *a; a = test_malloc_4(); return *(a+(2*2-3)) ; }",
+    2
 )]
 fn integration_test(#[case] input: &str, #[case] expected: i32) {
     let mut failure_count = 0;
