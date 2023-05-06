@@ -12,58 +12,73 @@ const OUT_FILE_BASE_NAME: &str = "tmpdir/tmp";
 const EXTERNAL_FUNC_FILE_BASE_NAME: &str = "tmpdir/external_func";
 
 #[rstest]
-#[case::return_0("main () { return 0; }", 0)]
-#[case::return_any_number("main () { return 42; }", 42)]
-#[case::addition("main () { return 1+2; }", 3)]
-#[case::subtraction("main () { return 5 + 20 - 4; }", 21)]
-#[case::multiplication("main () { return 1  + 2 * 3; }", 7)]
-#[case::division("main () { return 3 + 10 / 5; }", 5)]
-#[case::paren("main () { return 2 * (3 + 4); }", 14)]
-#[case::unary_minus("main () { return -10+20; }", 10)]
-#[case::unary_plus("main () { return +10+20; }", 30)]
-#[case::equality_equal("main () { return 10 == 10; }", 1)]
-#[case::equality_not_equal("main () { return 10 == 20; }", 0)]
-#[case::inequality_equal("main () { return 10 != 10; }", 0)]
-#[case::inequality_not_equal("main () { return 10 != 20; }", 1)]
-#[case::lessthan_less("main () { return 10 < 20; }", 1)]
-#[case::lessthan_equal("main () { return 10 < 10; }", 0)]
-#[case::lessthan_greater("main () { return 20 < 10; }", 0)]
-#[case::lessthanorequal_less("main () { return 10 <= 20; }", 1)]
-#[case::lessthanorequal_equal("main () { return 10 <= 10; }", 1)]
-#[case::lessthanorequal_greater("main () { return 20 <= 10; }", 0)]
-#[case::greaterthan_greater("main () { return 20 > 10; }", 1)]
-#[case::greaterthan_equal("main () { return 10 > 10; }", 0)]
-#[case::greaterthan_less("main () { return 10 > 20; }", 0)]
-#[case::greaterthanorequal_greater("main () { return 20 >= 10; }", 1)]
-#[case::greaterthanorequal_equal("main () { return 10 >= 10; }", 1)]
-#[case::greaterthanorequal_less("main () { return 10 >= 20; }", 0)]
-#[case::multiple_statement("main () { 1; 2; 3; }", 3)]
-#[case::return_statement("main () { 1; return 2; 3; }", 2)]
-#[case::assign("main () {int num; num = 3; }", 3)]
-#[case::variable("main () {int num; num = 3; return num + 2;}", 5)]
+#[case::return_0("int main () { return 0; }", 0)]
+#[case::return_any_number("int main () { return 42; }", 42)]
+#[case::addition("int main () { return 1+2; }", 3)]
+#[case::subtraction("int main () { return 5 + 20 - 4; }", 21)]
+#[case::multiplication("int main () { return 1  + 2 * 3; }", 7)]
+#[case::division("int main () { return 3 + 10 / 5; }", 5)]
+#[case::paren("int main () { return 2 * (3 + 4); }", 14)]
+#[case::unary_minus("int main () { return -10+20; }", 10)]
+#[case::unary_plus("int main () { return +10+20; }", 30)]
+#[case::equality_equal("int main () { return 10 == 10; }", 1)]
+#[case::equality_not_equal("int main () { return 10 == 20; }", 0)]
+#[case::inequality_equal("int main () { return 10 != 10; }", 0)]
+#[case::inequality_not_equal("int main () { return 10 != 20; }", 1)]
+#[case::lessthan_less("int main () { return 10 < 20; }", 1)]
+#[case::lessthan_equal("int main () { return 10 < 10; }", 0)]
+#[case::lessthan_greater("int main () { return 20 < 10; }", 0)]
+#[case::lessthanorequal_less("int main () { return 10 <= 20; }", 1)]
+#[case::lessthanorequal_equal("int main () { return 10 <= 10; }", 1)]
+#[case::lessthanorequal_greater("int main () { return 20 <= 10; }", 0)]
+#[case::greaterthan_greater("int main () { return 20 > 10; }", 1)]
+#[case::greaterthan_equal("int main () { return 10 > 10; }", 0)]
+#[case::greaterthan_less("int main () { return 10 > 20; }", 0)]
+#[case::greaterthanorequal_greater("int main () { return 20 >= 10; }", 1)]
+#[case::greaterthanorequal_equal("int main () { return 10 >= 10; }", 1)]
+#[case::greaterthanorequal_less("int main () { return 10 >= 20; }", 0)]
+#[case::multiple_statement("int main () { 1; 2; 3; }", 3)]
+#[case::return_statement("int main () { 1; return 2; 3; }", 2)]
+#[case::assign("int main () {int num; num = 3; }", 3)]
+#[case::variable("int main () {int num; num = 3; return num + 2;}", 5)]
 #[case::chained_assign(
-    "main () {int num1; int num2;  num1 = num2 = 3; return num1 + num2; }",
+    "int main () {int num1; int num2;  num1 = num2 = 3; return num1 + num2; }",
     6
 )]
-#[case::multiple_return("main () { return 3; return 5; }", 3)]
-#[case::if_true("main () { if (1) return 3; return 5; }", 3)]
-#[case::if_false("main () { if (0) return 3; return 5; }", 5)]
-#[case::if_else_true("main () { if (1) return 3; else return 5; }", 3)]
-#[case::if_else_false("main () { if (0) return 3; else return 5; }", 5)]
-#[case::while_loop("main () { int i; i = 1; while (i < 10) i = i * 2; return i; }", 16)]
+#[case::multiple_return("int main () { return 3; return 5; }", 3)]
+#[case::if_true("int main () { if (1) return 3; return 5; }", 3)]
+#[case::if_false("int main () { if (0) return 3; return 5; }", 5)]
+#[case::if_else_true("int main () { if (1) return 3; else return 5; }", 3)]
+#[case::if_else_false("int main () { if (0) return 3; else return 5; }", 5)]
+#[case::while_loop(
+    "int main () { int i; i = 1; while (i < 10) i = i * 2; return i; }",
+    16
+)]
 #[case::for_loop(
-    "main () {int sum; int i; sum = 0; for (i = 0; i <= 10; i = i + 1) sum = sum + i; return sum; }",
+    "int main () {int sum; int i; sum = 0; for (i = 0; i <= 10; i = i + 1) sum = sum + i; return sum; }",
     55
 )]
 #[case::while_with_block(
-    "main () {int i; int sum;  i = sum = 0; while(i <= 10) { sum = sum + i; i = i + 1; } return sum; }",
+    "int main () {int i; int sum;  i = sum = 0; while(i <= 10) { sum = sum + i; i = i + 1; } return sum; }",
     55
 )]
-#[case::external_function_call("main () { external_func(1,2,3,4,5,6); }", 91)]
-#[case::function_call( "my_func(int a, int b, int c, int d, int e, int f){int g; int h; g = 7; h = a + b * 2 + c * 3 + d * 4 + e * 5 + f * 6 + g; return h / 2;} main(){my_func(1,2,3,4,5,6);}", 49)]
+#[case::external_function_call("extern int external_func(int a, int b, int c, int d, int e, int f); int main () { external_func(1,2,3,4,5,6); }", 91)]
+#[case::function_call( "int my_func(int a, int b, int c, int d, int e, int f){int g; int h; g = 7; h = a + b * 2 + c * 3 + d * 4 + e * 5 + f * 6 + g; return h / 2;} int main(){my_func(1,2,3,4,5,6);}", 49)]
 #[case::pointer_dereference(
-    "main () {int a; a = 5; return f(&a); return a; } f (int *pointer) { *pointer = *pointer + 5 ; } ",
+    "int main () {int a; a = 5; return f(&a); return a; } int f (int *pointer) { *pointer = *pointer + 5 ; } ",
     10
+)]
+#[case::pointer_addition(
+    "extern int *test_malloc_4(); int main() { int *a; a = test_malloc_4(); return *(a + 2); }",
+    3
+)]
+#[case::pointer_subtraction(
+    "extern int *test_malloc_4(); int main() { int *a; a = test_malloc_4() + 2; return *(a-1); }",
+    2
+)]
+#[case::pointer_complicated_calculation(
+    "extern int *test_malloc_4(); int main() { int *a; a = test_malloc_4(); return *(a+(2*2-3)) ; }",
+    2
 )]
 fn integration_test(#[case] input: &str, #[case] expected: i32) {
     let mut failure_count = 0;

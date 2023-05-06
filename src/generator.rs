@@ -1,29 +1,20 @@
-use std::{collections::HashMap, io::Write};
+use std::{
+    collections::{hash_map, HashMap},
+    io::Write,
+};
 
-use crate::{expr::Expr, offset_calculator, statement::Statement, top_level::TopLevel};
+use crate::{expr::TypedExpr, statement::TypedStatement, top_level::TypedTopLevel, types::Type};
 
 const SYSTEM_V_CALLER_SAVE_REGISTERS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
 
 pub struct Program<'a, W: Write> {
     fresh_counter: usize,
-    program: Vec<TopLevel>,
-    write: &'a mut W,
-}
-
-pub struct Function<'a, W: Write> {
-    variable_offsets: HashMap<String, usize>,
-    name: String,
-    params: Vec<String>,
-    body: Vec<Statement>,
-
-    // TODO: うまくmutable な composition　が作れなかったのでとりあえずfresh_counterを持たせている
-    // base_generator: &'a mut ProgramGenerator,
-    fresh_counter: usize,
+    program: Vec<TypedTopLevel>,
     write: &'a mut W,
 }
 
 impl<'a, W: Write> Program<'a, W> {
-    pub fn new(program: Vec<TopLevel>, write: &'a mut W) -> Self {
+    pub fn new(program: Vec<TypedTopLevel>, write: &'a mut W) -> Self {
         Self {
             fresh_counter: 0,
             program,
@@ -52,12 +43,18 @@ impl<'a, W: Write> Program<'a, W> {
         }
     }
 
-    fn gen_top_level(&mut self, top_level: &TopLevel) {
+    fn gen_top_level(&mut self, top_level: &TypedTopLevel) {
         match top_level {
-            TopLevel::FunctionDefinition(name, params, statements) => {
+            TypedTopLevel::FunctionDefinition(
+                name,
+                params,
+                _,
+                statements,
+                variable_type_environment,
+            ) => {
                 let mut function_generator = Function::new(
                     name.clone(),
-                    offset_calculator::calculate_offset(params, statements),
+                    variable_type_environment,
                     params.clone(),
                     statements.clone(),
                     self.fresh_counter,
@@ -69,17 +66,33 @@ impl<'a, W: Write> Program<'a, W> {
     }
 }
 
+pub struct Function<'a, W: Write> {
+    variable_offsets: HashMap<String, usize>,
+    variables_offset: usize,
+    name: String,
+    params: Vec<(String, Type)>,
+    body: Vec<TypedStatement>,
+
+    // TODO: うまくmutable な composition　が作れなかったのでとりあえずfresh_counterを持たせている
+    // base_generator: &'a mut ProgramGenerator,
+    fresh_counter: usize,
+    write: &'a mut W,
+}
+
 impl<'a, W: Write> Function<'a, W> {
     pub fn new(
         name: String,
-        variable_offsets: HashMap<String, usize>,
-        params: Vec<String>,
-        body: Vec<Statement>,
+        variable_type_environment: &HashMap<String, Type>,
+        params: Vec<(String, Type)>,
+        body: Vec<TypedStatement>,
         fresh_counter: usize,
         write: &'a mut W,
     ) -> Self {
+        let (variable_offsets, variables_offset) =
+            Self::calc_variable_offset(variable_type_environment);
         Self {
             variable_offsets,
+            variables_offset,
             name,
             params,
             body,
@@ -94,28 +107,40 @@ impl<'a, W: Write> Function<'a, W> {
         format!("{}", self.fresh_counter)
     }
 
-    fn gen(&mut self) -> usize {
-        let variable_offsets = offset_calculator::calculate_offset(&self.params, &self.body);
+    fn calc_variable_offset(
+        local_variable_type_environment: &HashMap<String, Type>,
+    ) -> (HashMap<String, usize>, usize) {
+        let mut offset_map = HashMap::new();
+        let mut offset = 8;
+        for (variable, ty) in local_variable_type_environment {
+            if let hash_map::Entry::Vacant(e) = offset_map.entry(variable.clone()) {
+                e.insert(offset);
+                offset += ty.get_size();
+            }
+        }
+        (offset_map, offset)
+    }
 
+    fn gen(&mut self) -> usize {
         writeln!(&mut self.write, ".globl {}", self.name).unwrap();
         writeln!(self.write, "{}:", self.name).unwrap();
 
         writeln!(self.write, "  push rbp").unwrap();
         writeln!(self.write, "  mov rbp, rsp").unwrap();
-        writeln!(self.write, "  sub rsp, {}", self.variable_offsets.len() * 8).unwrap();
+        writeln!(self.write, "  sub rsp, {}", self.variables_offset).unwrap();
 
         for (i, param) in self.params.iter().enumerate() {
             writeln!(
                 self.write,
                 "  mov [rbp-{}], {}",
-                variable_offsets[param], SYSTEM_V_CALLER_SAVE_REGISTERS[i]
+                self.variable_offsets[&param.0], SYSTEM_V_CALLER_SAVE_REGISTERS[i]
             )
             .unwrap();
         }
 
         let body = &self.body.clone(); // TODO: borrow checker　が通してくれない...
 
-        self.gen_statements(body, (1 + self.variable_offsets.len()) * 8);
+        self.gen_statements(body, 8 + self.variables_offset);
 
         writeln!(self.write, "  mov rsp, rbp").unwrap();
         writeln!(self.write, "  pop rbp").unwrap();
@@ -124,27 +149,27 @@ impl<'a, W: Write> Function<'a, W> {
         self.fresh_counter
     }
 
-    fn gen_statements(&mut self, statements: &Vec<Statement>, rsp_offset: usize) {
+    fn gen_statements(&mut self, statements: &Vec<TypedStatement>, rsp_offset: usize) {
         for statement in statements {
             self.gen_statement(statement, rsp_offset);
         }
     }
 
-    fn gen_statement(&mut self, statement: &Statement, rsp_offset: usize) {
+    fn gen_statement(&mut self, statement: &TypedStatement, rsp_offset: usize) {
         match statement {
-            Statement::VariableDeclaration(_) => {}
-            Statement::Expr(expr) => {
+            TypedStatement::VariableDeclaration(_, _) => {}
+            TypedStatement::Expr(expr) => {
                 self.gen_expr(expr, rsp_offset);
                 writeln!(self.write, "  pop rax").unwrap();
             }
-            Statement::Return(expr) => {
+            TypedStatement::Return(expr) => {
                 self.gen_expr(expr, rsp_offset);
                 writeln!(self.write, "  pop rax").unwrap();
                 writeln!(self.write, "  mov rsp, rbp").unwrap();
                 writeln!(self.write, "  pop rbp").unwrap();
                 writeln!(self.write, "  ret").unwrap();
             }
-            Statement::If(expr, then_statement) => {
+            TypedStatement::If(expr, then_statement) => {
                 let suffix = self.get_fresh_suffix();
 
                 self.gen_expr(expr, rsp_offset);
@@ -156,7 +181,7 @@ impl<'a, W: Write> Function<'a, W> {
 
                 writeln!(self.write, ".Lend{suffix}:").unwrap();
             }
-            Statement::IfElse(expr, then_statement, else_statement) => {
+            TypedStatement::IfElse(expr, then_statement, else_statement) => {
                 let suffix = self.get_fresh_suffix();
 
                 self.gen_expr(expr, rsp_offset);
@@ -173,7 +198,7 @@ impl<'a, W: Write> Function<'a, W> {
 
                 writeln!(self.write, ".Lend{suffix}:").unwrap();
             }
-            Statement::While(expr, statement) => {
+            TypedStatement::While(expr, statement) => {
                 let suffix = self.get_fresh_suffix();
 
                 writeln!(self.write, ".Lbegin{suffix}:").unwrap();
@@ -188,7 +213,7 @@ impl<'a, W: Write> Function<'a, W> {
                 writeln!(self.write, "  jmp .Lbegin{suffix}").unwrap();
                 writeln!(self.write, ".Lend{suffix}:").unwrap();
             }
-            Statement::For(init, cond, update, body) => {
+            TypedStatement::For(init, cond, update, body) => {
                 let suffix = self.get_fresh_suffix();
 
                 self.gen_expr(init, rsp_offset);
@@ -209,51 +234,50 @@ impl<'a, W: Write> Function<'a, W> {
                 writeln!(self.write, "  jmp .Lbegin{suffix}").unwrap();
                 writeln!(self.write, ".Lend{suffix}:").unwrap();
             }
-            Statement::Block(statements) => {
+            TypedStatement::Block(statements) => {
                 self.gen_statements(statements, rsp_offset);
             }
         }
     }
 
-    // gen_expr 一回の呼び出しで rsp_offsetは 8 増える
-    fn gen_expr(&mut self, expr: &Expr, rsp_offset: usize) {
+    fn gen_expr(&mut self, expr: &TypedExpr, rsp_offset: usize) {
         match expr {
-            Expr::Num(n) => {
+            TypedExpr::IntNum(n) => {
                 writeln!(self.write, "  push {n}").unwrap();
             }
-            Expr::Add(lhs, rhs) => {
-                self.gen_binary_operation(lhs, rhs, rsp_offset, &["  add rax, rdi"]);
+            TypedExpr::Add(_, lhs, rhs) => {
+                self.gen_add_sub_operation(lhs, rhs, rsp_offset, "add");
             }
 
-            Expr::Sub(lhs, rhs) => {
-                self.gen_binary_operation(lhs, rhs, rsp_offset, &["  sub rax, rdi"]);
+            TypedExpr::Sub(_, lhs, rhs) => {
+                self.gen_add_sub_operation(lhs, rhs, rsp_offset, "sub");
             }
-            Expr::Mul(lhs, rhs) => {
+            TypedExpr::Mul(_, lhs, rhs) => {
                 self.gen_binary_operation(lhs, rhs, rsp_offset, &["  imul rax, rdi"]);
             }
 
-            Expr::Div(lhs, rhs) => {
+            TypedExpr::Div(_, lhs, rhs) => {
                 self.gen_binary_operation(lhs, rhs, rsp_offset, &["  cqo", "idiv rdi"]);
             }
-            Expr::LessThan(lhs, rhs) => {
+            TypedExpr::LessThan(lhs, rhs) => {
                 self.gen_comparator(lhs, rhs, rsp_offset, "setl");
             }
-            Expr::LessEqual(lhs, rhs) => {
+            TypedExpr::LessEqual(lhs, rhs) => {
                 self.gen_comparator(lhs, rhs, rsp_offset, "setle");
             }
-            Expr::Equal(lhs, rhs) => {
+            TypedExpr::Equal(lhs, rhs) => {
                 self.gen_comparator(lhs, rhs, rsp_offset, "sete");
             }
-            Expr::NotEqual(lhs, rhs) => {
+            TypedExpr::NotEqual(lhs, rhs) => {
                 self.gen_comparator(lhs, rhs, rsp_offset, "setne");
             }
-            Expr::GreaterThan(lhs, rhs) => {
+            TypedExpr::GreaterThan(lhs, rhs) => {
                 self.gen_comparator(lhs, rhs, rsp_offset, "setg");
             }
-            Expr::GreaterEqual(lhs, rhs) => {
+            TypedExpr::GreaterEqual(lhs, rhs) => {
                 self.gen_comparator(lhs, rhs, rsp_offset, "setge");
             }
-            Expr::Assign(lhs, rhs) => {
+            TypedExpr::Assign(_, lhs, rhs) => {
                 self.gen_lvalue(lhs);
                 self.gen_expr(rhs, rsp_offset + 8);
 
@@ -262,13 +286,13 @@ impl<'a, W: Write> Function<'a, W> {
                 writeln!(self.write, "  mov [rax], rdi").unwrap();
                 writeln!(self.write, "  push rdi").unwrap();
             }
-            Expr::Variable(_) => {
+            TypedExpr::Variable(_, _) => {
                 self.gen_lvalue(expr);
                 writeln!(self.write, "  pop rax").unwrap();
                 writeln!(self.write, "  mov rax, [rax]").unwrap();
                 writeln!(self.write, "  push rax").unwrap();
             }
-            Expr::FunctionCall(name, args) => {
+            TypedExpr::FunctionCall(_, name, args) => {
                 for (i, arg) in args.iter().enumerate() {
                     self.gen_expr(arg, rsp_offset + i * 8);
                 }
@@ -289,10 +313,10 @@ impl<'a, W: Write> Function<'a, W> {
 
                 writeln!(self.write, "  push rax").unwrap();
             }
-            Expr::Address(expr) => {
+            TypedExpr::Address(_, expr) => {
                 self.gen_lvalue(expr);
             }
-            Expr::Dereference(expr) => {
+            TypedExpr::Dereference(_, expr) => {
                 self.gen_expr(expr, rsp_offset);
                 writeln!(self.write, "  pop rax").unwrap();
                 writeln!(self.write, "  mov rax, [rax]").unwrap();
@@ -301,7 +325,46 @@ impl<'a, W: Write> Function<'a, W> {
         }
     }
 
-    fn gen_binary_operation(&mut self, lhs: &Expr, rhs: &Expr, rsp_offset: usize, ops: &[&str]) {
+    fn gen_add_sub_operation(
+        &mut self,
+        lhs: &TypedExpr,
+        rhs: &TypedExpr,
+        rsp_offset: usize,
+        op: &str,
+    ) {
+        match (lhs.get_type(), rhs.get_type()) {
+            (Type::PointerType(_), Type::PointerType(_)) => {
+                panic!("pointer + pointer is not supported")
+            }
+            (Type::PointerType(_), _) => {
+                self.gen_binary_operation(
+                    lhs,
+                    rhs,
+                    rsp_offset,
+                    &["  imul rdi, 8", &format!("  {op} rax, rdi")],
+                );
+            }
+            (_, Type::PointerType(_)) => {
+                self.gen_binary_operation(
+                    lhs,
+                    rhs,
+                    rsp_offset,
+                    &["  imul rax, 8", &format!("  {op} rax, rdi")],
+                );
+            }
+            _ => {
+                self.gen_binary_operation(lhs, rhs, rsp_offset, &[&format!("  {op} rax, rdi")]);
+            }
+        }
+    }
+
+    fn gen_binary_operation(
+        &mut self,
+        lhs: &TypedExpr,
+        rhs: &TypedExpr,
+        rsp_offset: usize,
+        ops: &[&str],
+    ) {
         self.gen_expr(lhs, rsp_offset);
         self.gen_expr(rhs, rsp_offset + 8);
 
@@ -315,7 +378,7 @@ impl<'a, W: Write> Function<'a, W> {
         writeln!(self.write, "  push rax").unwrap();
     }
 
-    fn gen_comparator(&mut self, lhs: &Expr, rhs: &Expr, rsp_offset: usize, op: &str) {
+    fn gen_comparator(&mut self, lhs: &TypedExpr, rhs: &TypedExpr, rsp_offset: usize, op: &str) {
         self.gen_binary_operation(
             lhs,
             rhs,
@@ -328,9 +391,9 @@ impl<'a, W: Write> Function<'a, W> {
         );
     }
 
-    fn gen_lvalue(&mut self, expr: &Expr) {
+    fn gen_lvalue(&mut self, expr: &TypedExpr) {
         match expr {
-            Expr::Variable(name) => {
+            TypedExpr::Variable(_, name) => {
                 let error_message = format!("variable {name} not found");
 
                 let offset = self.variable_offsets.get(name).expect(&error_message);
@@ -339,7 +402,7 @@ impl<'a, W: Write> Function<'a, W> {
                 writeln!(self.write, "  sub rax, {offset}").unwrap();
                 writeln!(self.write, "  push rax").unwrap();
             }
-            Expr::Dereference(expr) => {
+            TypedExpr::Dereference(_, expr) => {
                 self.gen_lvalue(expr);
             }
             _ => todo!(),
