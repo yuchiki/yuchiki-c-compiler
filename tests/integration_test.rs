@@ -58,23 +58,28 @@ const EXTERNAL_FUNC_FILE_BASE_NAME: &str = "tmpdir/external_func";
 )]
 #[case::external_function_call("main () { external_func(1,2,3,4,5,6); }", 91)]
 #[case::function_call( "my_func(a, b, c, d, e, f){g = 7; h = a + b * 2 + c * 3 + d * 4 + e * 5 + f * 6 + g; return h / 2;} main(){my_func(1,2,3,4,5,6);}", 49)]
-#[case::pointer_dereference("main () { a = 5; return f(&a);} f (pointer) { return *pointer; } ", 5)]
+#[case::pointer_dereference(
+    "main () { a = 5; return f(&a); return a; } f (pointer) { *pointer = *pointer + 5 ; } ",
+    10
+)]
 fn integration_test(#[case] input: &str, #[case] expected: i32) {
     let mut failure_count = 0;
     let status = loop {
-        if let Some(status) = execute_test_case(input) {
-            break status;
-        } else if failure_count == 5 {
-            panic!("failed to execute test case");
+        match execute_test_case(input) {
+            Ok(status) => break status,
+            Err(e) => {
+                if failure_count == 5 {
+                    panic!("failed to execute test case: {}", e);
+                }
+            }
         }
-
         failure_count += 1;
     };
 
     assert_eq!(status, expected);
 }
 
-fn execute_test_case(input: &str) -> Option<i32> {
+fn execute_test_case(input: &str) -> Result<i32, Box<dyn std::error::Error>> {
     let suffix = rand::thread_rng()
         .sample_iter(&rand::distributions::Alphanumeric)
         .take(50)
@@ -91,25 +96,28 @@ fn execute_test_case(input: &str) -> Option<i32> {
         .arg("-o")
         .arg(format!("{}.s", EXTERNAL_FUNC_FILE_BASE_NAME))
         .arg(format!("{}.c", EXTERNAL_FUNC_FILE_BASE_NAME))
-        .output()
-        .ok()?;
+        .output()?;
 
-    Command::new("gcc")
+    let gcc_output = Command::new("gcc")
         .arg("--static")
         .arg("-o")
         .arg(format!("{}-{}", OUT_FILE_BASE_NAME, suffix))
         .arg(format!("{}-{}.s", OUT_FILE_BASE_NAME, suffix))
         .arg(format!("{}.s", EXTERNAL_FUNC_FILE_BASE_NAME))
-        .output()
-        .ok()?;
-
+        .output()?;
     let status = Command::new(format!("./{}-{}", OUT_FILE_BASE_NAME, suffix)).status();
 
     Command::new("rm")
         .arg(format!("{}-{}.s", OUT_FILE_BASE_NAME, suffix))
         .arg(format!("{}-{}", OUT_FILE_BASE_NAME, suffix))
-        .output()
-        .ok()?;
+        .output()?;
 
-    status.ok()?.code()
+    status?.code().ok_or_else(|| {
+        format!(
+            "failed to execute test case: stderr: {}, stdout: {}",
+            std::str::from_utf8(&gcc_output.stderr).unwrap(),
+            std::str::from_utf8(&gcc_output.stdout).unwrap()
+        )
+        .into()
+    })
 }

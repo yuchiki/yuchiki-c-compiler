@@ -336,6 +336,9 @@ impl<'a, W: Write> Function<'a, W> {
                 writeln!(self.write, "  sub rax, {offset}").unwrap();
                 writeln!(self.write, "  push rax").unwrap();
             }
+            Expr::Dereference(expr) => {
+                self.gen_lvalue(expr);
+            }
             _ => todo!(),
         }
     }
