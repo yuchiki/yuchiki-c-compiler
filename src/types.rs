@@ -5,6 +5,7 @@ pub enum Type {
 }
 
 impl Type {
+    #[allow(dead_code)]
     pub const fn get_size(&self) -> usize {
         match self {
             Self::PointerType(_) => 8,
