@@ -5,7 +5,7 @@ pub struct SourcePosition(pub usize);
 
 pub type PositionedToken = (Token, SourcePosition);
 
-static TOKEN_MAP: [(&str, Token); 23] = [
+static TOKEN_MAP: [(&str, Token); 24] = [
     ("+", Token::Plus),
     ("-", Token::Minus),
     ("*", Token::Asterisk),
@@ -29,6 +29,7 @@ static TOKEN_MAP: [(&str, Token); 23] = [
     ("while", Token::While),
     ("for", Token::For),
     ("return", Token::Return),
+    ("int", Token::Int),
 ];
 
 pub fn tokenize(input: &[char]) -> Vec<PositionedToken> {
@@ -107,7 +108,7 @@ mod tests {
     #[test]
     fn test_tokenize() {
         let input =
-            "+ - * / ( ) { } , == != <= < >= > ; = & if else while for return 12345abcedef12345";
+            "+ - * / ( ) { } , == != <= < >= > ; = & if else while for return 12345abcedef12345 int";
         let expected = vec![
             (Token::Plus, SourcePosition(0)),
             (Token::Minus, SourcePosition(2)),
@@ -137,6 +138,7 @@ mod tests {
                 Token::Identifier("abcedef12345".to_string()),
                 SourcePosition(70),
             ),
+            (Token::Int, SourcePosition(83)),
         ];
         assert_eq!(tokenize(&input.chars().collect::<Vec<char>>()), expected);
     }

@@ -39,27 +39,30 @@ const EXTERNAL_FUNC_FILE_BASE_NAME: &str = "tmpdir/external_func";
 #[case::greaterthanorequal_less("main () { return 10 >= 20; }", 0)]
 #[case::multiple_statement("main () { 1; 2; 3; }", 3)]
 #[case::return_statement("main () { 1; return 2; 3; }", 2)]
-#[case::assign("main () { num = 3; }", 3)]
-#[case::variable("main () { num = 3; return num + 2;}", 5)]
-#[case::chained_assign("main () { num1 = num2 = 3; return num1 + num2; }", 6)]
+#[case::assign("main () {int num; num = 3; }", 3)]
+#[case::variable("main () {int num; num = 3; return num + 2;}", 5)]
+#[case::chained_assign(
+    "main () {int num1; int num2;  num1 = num2 = 3; return num1 + num2; }",
+    6
+)]
 #[case::multiple_return("main () { return 3; return 5; }", 3)]
 #[case::if_true("main () { if (1) return 3; return 5; }", 3)]
 #[case::if_false("main () { if (0) return 3; return 5; }", 5)]
 #[case::if_else_true("main () { if (1) return 3; else return 5; }", 3)]
 #[case::if_else_false("main () { if (0) return 3; else return 5; }", 5)]
-#[case::while_loop("main () { i = 1; while (i < 10) i = i * 2; return i; }", 16)]
+#[case::while_loop("main () { int i; i = 1; while (i < 10) i = i * 2; return i; }", 16)]
 #[case::for_loop(
-    "main () { sum = 0; for (i = 0; i <= 10; i = i + 1) sum = sum + i; return sum; }",
+    "main () {int sum; int i; sum = 0; for (i = 0; i <= 10; i = i + 1) sum = sum + i; return sum; }",
     55
 )]
 #[case::while_with_block(
-    "main () { i = sum = 0; while(i <= 10) { sum = sum + i; i = i + 1; } return sum; }",
+    "main () {int i; int sum;  i = sum = 0; while(i <= 10) { sum = sum + i; i = i + 1; } return sum; }",
     55
 )]
 #[case::external_function_call("main () { external_func(1,2,3,4,5,6); }", 91)]
-#[case::function_call( "my_func(a, b, c, d, e, f){g = 7; h = a + b * 2 + c * 3 + d * 4 + e * 5 + f * 6 + g; return h / 2;} main(){my_func(1,2,3,4,5,6);}", 49)]
+#[case::function_call( "my_func(a, b, c, d, e, f){int g; int h; g = 7; h = a + b * 2 + c * 3 + d * 4 + e * 5 + f * 6 + g; return h / 2;} main(){my_func(1,2,3,4,5,6);}", 49)]
 #[case::pointer_dereference(
-    "main () { a = 5; return f(&a); return a; } f (pointer) { *pointer = *pointer + 5 ; } ",
+    "main () {int a; a = 5; return f(&a); return a; } f (pointer) { *pointer = *pointer + 5 ; } ",
     10
 )]
 fn integration_test(#[case] input: &str, #[case] expected: i32) {

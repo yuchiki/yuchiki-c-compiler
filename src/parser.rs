@@ -72,95 +72,12 @@ impl<'a> Parser<'a> {
 
     pub fn munch_statement(&mut self) -> Statement {
         match self.tokens {
-            [(Token::Return, _), ..] => {
-                self.advance(1);
-                let statment = Statement::Return(self.munch_expr());
-                match self.tokens {
-                    [(Token::Semicolon, _), ..] => {
-                        self.advance(1);
-                        statment
-                    }
-                    _ => panic!("セミコロンがない"),
-                }
-            }
-            [(Token::If, _), (Token::LParen, _), ..] => {
-                self.advance(2);
-                let cond = self.munch_expr();
-                match self.tokens {
-                    [(Token::RParen, _), ..] => {
-                        self.advance(1);
-                        let then = self.munch_statement();
-                        match self.tokens {
-                            [(Token::Else, _), ..] => {
-                                self.advance(1);
-                                let els = self.munch_statement();
-                                Statement::IfElse(Box::new(cond), Box::new(then), Box::new(els))
-                            }
-                            _ => Statement::If(Box::new(cond), Box::new(then)),
-                        }
-                    }
-                    _ => panic!("括弧が閉じられていない"),
-                }
-            }
-            [(Token::While, _), (Token::LParen, _), ..] => {
-                self.advance(2);
-                let cond = self.munch_expr();
-                match self.tokens {
-                    [(Token::RParen, _), ..] => {
-                        self.advance(1);
-                        let body = self.munch_statement();
-                        Statement::While(Box::new(cond), Box::new(body))
-                    }
-                    _ => panic!("括弧が閉じられていない"),
-                }
-            }
-            [(Token::For, _), (Token::LParen, _), ..] => {
-                self.advance(2);
-                let init = self.munch_expr();
-                if let [(Token::Semicolon, _), ..] = self.tokens {
-                    self.advance(1);
-                } else {
-                    panic!("セミコロンがない");
-                }
-
-                let cond = self.munch_expr();
-                if let [(Token::Semicolon, _), ..] = self.tokens {
-                    self.advance(1);
-                } else {
-                    panic!("セミコロンがない");
-                }
-
-                let update = self.munch_expr();
-                if let [(Token::RParen, _), ..] = self.tokens {
-                    self.advance(1);
-                } else {
-                    panic!("括弧が閉じられていない");
-                }
-
-                let body = self.munch_statement();
-
-                Statement::For(
-                    Box::new(init),
-                    Box::new(cond),
-                    Box::new(update),
-                    Box::new(body),
-                )
-            }
-            [(Token::LBrace, _), ..] => {
-                self.advance(1);
-                let mut statements = Vec::new();
-                loop {
-                    match self.tokens {
-                        [(Token::RBrace, _), ..] => {
-                            self.advance(1);
-                            break;
-                        }
-                        _ => statements.push(self.munch_statement()),
-                    }
-                }
-
-                Statement::Block(statements)
-            }
+            [(Token::Return, _), ..] => self.parse_return(),
+            [(Token::If, _), (Token::LParen, _), ..] => self.parse_if(),
+            [(Token::While, _), (Token::LParen, _), ..] => self.parse_while(),
+            [(Token::For, _), (Token::LParen, _), ..] => self.parse_for(),
+            [(Token::LBrace, _), ..] => self.parse_block(),
+            [(Token::Int, _), ..] => self.parse_variable_declaration(),
             _ => {
                 let expr = self.munch_expr();
                 match self.tokens {
@@ -171,6 +88,123 @@ impl<'a> Parser<'a> {
                     _ => panic!("セミコロンがない"),
                 }
             }
+        }
+    }
+
+    fn parse_variable_declaration(&mut self) -> Statement {
+        assert!(self.tokens[0].0 == Token::Int);
+        self.advance(1);
+
+        let name = if let Token::Identifier(name) = &self.tokens[0].0 {
+            name.clone()
+        } else {
+            panic!("parse error");
+        };
+        self.advance(1);
+
+        match self.tokens {
+            [(Token::Semicolon, _), ..] => {
+                self.advance(1);
+                Statement::VariableDeclaration(name)
+            }
+            _ => panic!("セミコロンがない: {:?}", self.tokens[0].0),
+        }
+    }
+
+    fn parse_block(&mut self) -> Statement {
+        assert!(self.tokens[0].0 == Token::LBrace);
+        self.advance(1);
+        let mut statements = Vec::new();
+        loop {
+            match self.tokens {
+                [(Token::RBrace, _), ..] => {
+                    self.advance(1);
+                    break;
+                }
+                _ => statements.push(self.munch_statement()),
+            }
+        }
+        Statement::Block(statements)
+    }
+
+    fn parse_for(&mut self) -> Statement {
+        assert!(self.tokens[0].0 == Token::For);
+        assert!(self.tokens[1].0 == Token::LParen);
+        self.advance(2);
+        let init = self.munch_expr();
+        if let [(Token::Semicolon, _), ..] = self.tokens {
+            self.advance(1);
+        } else {
+            panic!("セミコロンがない");
+        }
+        let cond = self.munch_expr();
+        if let [(Token::Semicolon, _), ..] = self.tokens {
+            self.advance(1);
+        } else {
+            panic!("セミコロンがない");
+        }
+        let update = self.munch_expr();
+        if let [(Token::RParen, _), ..] = self.tokens {
+            self.advance(1);
+        } else {
+            panic!("括弧が閉じられていない");
+        }
+        let body = self.munch_statement();
+        Statement::For(
+            Box::new(init),
+            Box::new(cond),
+            Box::new(update),
+            Box::new(body),
+        )
+    }
+
+    fn parse_while(&mut self) -> Statement {
+        assert!(self.tokens[0].0 == Token::While, "parse error");
+        assert!(self.tokens[1].0 == Token::LParen, "parse error");
+        self.advance(2);
+        let cond = self.munch_expr();
+        match self.tokens {
+            [(Token::RParen, _), ..] => {
+                self.advance(1);
+                let body = self.munch_statement();
+                Statement::While(Box::new(cond), Box::new(body))
+            }
+            _ => panic!("括弧が閉じられていない"),
+        }
+    }
+
+    fn parse_if(&mut self) -> Statement {
+        assert!(self.tokens[0].0 == Token::If, "parse error");
+        assert!(self.tokens[1].0 == Token::LParen, "parse error");
+        self.advance(2);
+        let cond = self.munch_expr();
+        match self.tokens {
+            [(Token::RParen, _), ..] => {
+                self.advance(1);
+                let then = self.munch_statement();
+                match self.tokens {
+                    [(Token::Else, _), ..] => {
+                        self.advance(1);
+                        let els = self.munch_statement();
+                        Statement::IfElse(Box::new(cond), Box::new(then), Box::new(els))
+                    }
+                    _ => Statement::If(Box::new(cond), Box::new(then)),
+                }
+            }
+            _ => panic!("括弧が閉じられていない"),
+        }
+    }
+
+    fn parse_return(&mut self) -> Statement {
+        assert!(self.tokens[0].0 == Token::Return, "parse error");
+        self.advance(1);
+        let statment = Statement::Return(self.munch_expr());
+        match self.tokens {
+            [(Token::Semicolon, _), ..] => {
+                self.advance(1);
+                statment
+            }
+            _ => panic!("セミコロンがない"),
         }
     }
 

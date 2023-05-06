@@ -1,9 +1,9 @@
 use std::collections::{hash_map, HashMap};
 
-use crate::{expr::Expr, statement::Statement};
+use crate::statement::Statement;
 
 pub fn calculate_offset(params: &[String], statements: &[Statement]) -> HashMap<String, usize> {
-    let identifiers = [&collect_identifiers_in_statements(statements)[..], params].concat();
+    let identifiers = [params, &collect_identifiers_in_statements(statements)[..]].concat();
 
     let mut offset_map = HashMap::new();
     let mut offset = 8;
@@ -26,63 +26,25 @@ fn collect_identifiers_in_statements(statements: &[Statement]) -> Vec<String> {
 
 fn collect_identifiers_in_statement(statement: &Statement) -> Vec<String> {
     match statement {
-        Statement::Expr(expr) | Statement::Return(expr) => collect_identifiers_in_expr(expr),
-        Statement::If(cond, then) => [
-            &collect_identifiers_in_expr(cond)[..],
-            &collect_identifiers_in_statement(then)[..],
-        ]
-        .concat(),
-        Statement::IfElse(cond, then, els) => [
-            &collect_identifiers_in_expr(cond)[..],
+        Statement::Expr(_) | Statement::Return(_) => vec![],
+        Statement::If(_, then) => [&collect_identifiers_in_statement(then)[..]].concat(),
+        Statement::IfElse(_, then, els) => [
             &collect_identifiers_in_statement(then)[..],
             &collect_identifiers_in_statement(els)[..],
         ]
         .concat(),
-        Statement::While(cond, body) => [
-            &collect_identifiers_in_expr(cond)[..],
-            &collect_identifiers_in_statement(body)[..],
-        ]
-        .concat(),
-        Statement::For(init, cond, step, body) => [
-            &collect_identifiers_in_expr(init)[..],
-            &collect_identifiers_in_expr(cond)[..],
-            &collect_identifiers_in_expr(step)[..],
-            &collect_identifiers_in_statement(body)[..],
-        ]
-        .concat(),
+        Statement::While(_, body) | Statement::For(_, _, _, body) => {
+            [&collect_identifiers_in_statement(body)[..]].concat()
+        }
         Statement::Block(statements) => collect_identifiers_in_statements(statements),
-    }
-}
-
-fn collect_identifiers_in_expr(expr: &Expr) -> Vec<String> {
-    match expr {
-        Expr::Add(lhs, rhs)
-        | Expr::Sub(lhs, rhs)
-        | Expr::Mul(lhs, rhs)
-        | Expr::Div(lhs, rhs)
-        | Expr::Equal(lhs, rhs)
-        | Expr::NotEqual(lhs, rhs)
-        | Expr::LessThan(lhs, rhs)
-        | Expr::LessEqual(lhs, rhs)
-        | Expr::GreaterThan(lhs, rhs)
-        | Expr::GreaterEqual(lhs, rhs)
-        | Expr::Assign(lhs, rhs) => [
-            &collect_identifiers_in_expr(lhs)[..],
-            &collect_identifiers_in_expr(rhs)[..],
-        ]
-        .concat(),
-        Expr::Address(expr) | Expr::Dereference(expr) => collect_identifiers_in_expr(expr),
-        Expr::Num(_) => vec![],
-        Expr::Variable(name) => vec![name.clone()],
-        Expr::FunctionCall(_, args) => args
-            .iter()
-            .flat_map(collect_identifiers_in_expr)
-            .collect::<Vec<String>>(),
+        Statement::VariableDeclaration(name) => vec![name.clone()],
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::expr::Expr;
+
     use super::*;
 
     #[test]
@@ -97,10 +59,7 @@ mod tests {
                 Box::new(Expr::Variable("b".to_string())),
                 Box::new(Expr::Num(2)),
             )),
-            Statement::Expr(Expr::Assign(
-                Box::new(Expr::Variable("c".to_string())),
-                Box::new(Expr::Num(3)),
-            )),
+            Statement::VariableDeclaration("c".to_string()),
         ];
         let offset_map = calculate_offset(&params, &statements);
         assert_eq!(offset_map["a"], 8);
@@ -115,49 +74,9 @@ mod tests {
                 Box::new(Expr::Variable("a".to_string())),
                 Box::new(Expr::Num(1)),
             )),
-            Statement::Expr(Expr::Assign(
-                Box::new(Expr::Variable("b".to_string())),
-                Box::new(Expr::Num(2)),
-            )),
-            Statement::Expr(Expr::Assign(
-                Box::new(Expr::Variable("c".to_string())),
-                Box::new(Expr::Num(3)),
-            )),
+            Statement::VariableDeclaration("b".to_string()),
         ];
         let identifiers = collect_identifiers_in_statements(&statements);
-        assert_eq!(identifiers, vec!["a", "b", "c"]);
-    }
-
-    #[test]
-    fn test_collect_identifiers_in_statement() {
-        let statement = Statement::Expr(Expr::Assign(
-            Box::new(Expr::Variable("a".to_string())),
-            Box::new(Expr::Num(1)),
-        ));
-        let identifiers = collect_identifiers_in_statement(&statement);
-        assert_eq!(identifiers, vec!["a"]);
-    }
-
-    #[test]
-    fn test_collect_identifiers_in_expr() {
-        let expr = Expr::FunctionCall(
-            "f".to_string(),
-            vec![
-                Expr::Variable("a".to_string()),
-                Expr::Mul(
-                    Box::new(Expr::Variable("b".to_string())),
-                    Box::new(Expr::Num(2)),
-                ),
-                Expr::Assign(
-                    Box::new(Expr::Assign(
-                        Box::new(Expr::Variable("c".to_string())),
-                        Box::new(Expr::Num(3)),
-                    )),
-                    Box::new(Expr::Variable("d".to_string())),
-                ),
-            ],
-        );
-        let identifiers = collect_identifiers_in_expr(&expr);
-        assert_eq!(identifiers, vec!["a", "b", "c", "d"]);
+        assert_eq!(identifiers, vec!["b",]);
     }
 }
