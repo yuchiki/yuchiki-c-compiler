@@ -767,6 +767,12 @@ mod tests {
             (Token::Identifier("b".to_string()), SourcePosition(0)),
             (Token::RParen, SourcePosition(0)),
             (Token::LBrace, SourcePosition(0)),
+            (Token::Int, SourcePosition(0)),
+            (Token::Identifier("c".to_string()), SourcePosition(0)),
+            (Token::LBracket, SourcePosition(0)),
+            (Token::Num(5), SourcePosition(0)),
+            (Token::RBracket, SourcePosition(0)),
+            (Token::Semicolon, SourcePosition(0)),
             (Token::Num(1), SourcePosition(0)),
             (Token::Semicolon, SourcePosition(0)),
             (Token::Num(2), SourcePosition(0)),
@@ -774,7 +780,7 @@ mod tests {
             (Token::RBrace, SourcePosition(0)),
         ];
 
-        let mut parser = Parser::new(&tokens, "int f(int a, int b) {1;2;}");
+        let mut parser = Parser::new(&tokens, "int f(int a, int b) {int c[5]; 1;2;}");
         let top_level = parser.munch_top_level();
 
         assert_eq!(
@@ -786,7 +792,14 @@ mod tests {
                     ("b".to_string(), Type::IntTyp)
                 ],
                 Type::IntTyp,
-                vec![Statement::Expr(Expr::Num(1)), Statement::Expr(Expr::Num(2))]
+                vec![
+                    Statement::VariableDeclaration(
+                        "c".to_string(),
+                        Type::Array(Box::new(Type::IntTyp), 5)
+                    ),
+                    Statement::Expr(Expr::Num(1)),
+                    Statement::Expr(Expr::Num(2))
+                ]
             )
         );
     }

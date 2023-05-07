@@ -112,10 +112,10 @@ impl<'a, W: Write> Function<'a, W> {
     ) -> (HashMap<String, usize>, usize) {
         let mut offset_map = HashMap::new();
         let mut offset = 8;
-        for variable in local_variable_type_environment.keys() {
+        for (variable, ty) in local_variable_type_environment {
             if let hash_map::Entry::Vacant(e) = offset_map.entry(variable.clone()) {
                 e.insert(offset);
-                offset += 8;
+                offset += ty.get_size();
             }
         }
         (offset_map, offset)
@@ -281,15 +281,27 @@ impl<'a, W: Write> Function<'a, W> {
                 self.gen_lvalue(lhs);
                 self.gen_expr(rhs, rsp_offset + 8);
 
+                let di_register = match rhs.get_type().get_size() {
+                    4 => "edi",
+                    8 => "rdi",
+                    _ => panic!("unexpected size"),
+                };
+
                 writeln!(self.write, "  pop rdi").unwrap();
                 writeln!(self.write, "  pop rax").unwrap();
-                writeln!(self.write, "  mov [rax], rdi").unwrap();
+                writeln!(self.write, "  mov [rax], {di_register}").unwrap();
                 writeln!(self.write, "  push rdi").unwrap();
             }
-            TypedExpr::Variable(_, _) => {
+            TypedExpr::Variable(ty, _) => {
+                let ax_register = match ty.get_size() {
+                    4 => "eax",
+                    8 => "rax",
+                    _ => panic!("unexpected size"),
+                };
+
                 self.gen_lvalue(expr);
                 writeln!(self.write, "  pop rax").unwrap();
-                writeln!(self.write, "  mov rax, [rax]").unwrap();
+                writeln!(self.write, "  mov {ax_register}, [rax]").unwrap();
                 writeln!(self.write, "  push rax").unwrap();
             }
             TypedExpr::FunctionCall(_, name, args) => {
@@ -301,16 +313,10 @@ impl<'a, W: Write> Function<'a, W> {
                     writeln!(self.write, "  pop {}", SYSTEM_V_CALLER_SAVE_REGISTERS[i]).unwrap();
                 }
 
-                if (rsp_offset % 16) != 0 {
-                    writeln!(self.write, "  sub rsp, 8").unwrap();
-                }
-
+                let miss_alignment = rsp_offset % 16;
+                writeln!(self.write, "  sub rsp, {miss_alignment}").unwrap();
                 writeln!(self.write, "  call {name}").unwrap();
-
-                if (rsp_offset % 16) != 0 {
-                    writeln!(self.write, "  add rsp, 8").unwrap();
-                }
-
+                writeln!(self.write, "  add rsp, {miss_alignment}").unwrap();
                 writeln!(self.write, "  push rax").unwrap();
             }
             TypedExpr::Address(_, expr) => {

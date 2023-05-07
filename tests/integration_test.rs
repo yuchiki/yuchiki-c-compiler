@@ -63,6 +63,15 @@ const EXTERNAL_FUNC_FILE_BASE_NAME: &str = "tmpdir/external_func";
     55
 )]
 #[case::external_function_call("extern int external_func(int a, int b, int c, int d, int e, int f); int main () { external_func(1,2,3,4,5,6); }", 91)]
+#[case::function_call_without_args("int my_func() { return 3; } int main () { my_func(); }", 3)]
+#[case::function_call_with_an_arg(
+    "int my_func(int a) { int b; b = 3; return a + b; } int main () { my_func(3); }",
+    6
+)]
+#[case::function_call_with_two_args(
+    "int my_func(int a, int b) { int c; c = 10; return a+b+c; } int main () { my_func(3, 5); }",
+    18
+)]
 #[case::function_call( "int my_func(int a, int b, int c, int d, int e, int f){int g; int h; g = 7; h = a + b * 2 + c * 3 + d * 4 + e * 5 + f * 6 + g; return h / 2;} int main(){my_func(1,2,3,4,5,6);}", 49)]
 #[case::pointer_dereference(
     "int main () {int a; a = 5; return f(&a); return a; } int f (int *pointer) { *pointer = *pointer + 5 ; } ",
@@ -107,7 +116,8 @@ fn execute_test_case(input: &str) -> Result<i32, Box<dyn std::error::Error>> {
         .collect::<String>();
 
     {
-        let write = std::fs::File::create(format!("{}-{}.s", OUT_FILE_BASE_NAME, suffix)).unwrap();
+        let write = std::fs::File::create(format!("{}-{}.s", OUT_FILE_BASE_NAME, suffix))
+            .expect("cannot open the assembly file as create mode");
         process(input, write);
     }
 
@@ -116,7 +126,8 @@ fn execute_test_case(input: &str) -> Result<i32, Box<dyn std::error::Error>> {
         .arg("-o")
         .arg(format!("{}.s", EXTERNAL_FUNC_FILE_BASE_NAME))
         .arg(format!("{}.c", EXTERNAL_FUNC_FILE_BASE_NAME))
-        .output()?;
+        .output()
+        .or(Err("error on gcc-ing the external file"))?;
 
     let gcc_output = Command::new("gcc")
         .arg("--static")
@@ -124,7 +135,8 @@ fn execute_test_case(input: &str) -> Result<i32, Box<dyn std::error::Error>> {
         .arg(format!("{}-{}", OUT_FILE_BASE_NAME, suffix))
         .arg(format!("{}-{}.s", OUT_FILE_BASE_NAME, suffix))
         .arg(format!("{}.s", EXTERNAL_FUNC_FILE_BASE_NAME))
-        .output()?;
+        .output()
+        .or(Err("error on gcc-ing the generated assembly"))?;
     let status = Command::new(format!("./{}-{}", OUT_FILE_BASE_NAME, suffix)).status();
 
     Command::new("rm")
