@@ -203,7 +203,7 @@ impl FunctionTypist {
     }
 
     fn type_dereference(&self, expr: &Expr) -> TypedExpr {
-        let typed_expr = self.type_expr(expr);
+        let typed_expr = self.type_expr(expr).decay_if_array();
         if let Type::Pointer(ty) = typed_expr.get_type() {
             TypedExpr::Dereference(*ty, Box::new(typed_expr))
         } else {
@@ -230,8 +230,13 @@ impl FunctionTypist {
     fn type_assign(&self, lhs: &Expr, rhs: &Expr) -> TypedExpr {
         let lhs = self.type_expr(lhs);
         let rhs = self.type_expr(rhs);
-        assert_eq!(lhs.get_type(), rhs.get_type(), "lhs: {lhs:?}, rhs: {rhs:?}",);
-        TypedExpr::Assign(lhs.get_type(), Box::new(lhs), Box::new(rhs))
+        //        assert_eq!(lhs.get_type(), rhs.get_type(), "lhs: {lhs:?}, rhs: {rhs:?}",); // 左にポインタ、右に配列の時困るのでコメントアウト
+        assert!(!matches!(lhs.get_type(), Type::Array(_, _)));
+        TypedExpr::Assign(
+            lhs.get_type(),
+            Box::new(lhs),
+            Box::new(rhs.decay_if_array()),
+        )
     }
 
     fn type_function_call(&self, name: &String, args: &Vec<Expr>) -> TypedExpr {
@@ -254,7 +259,7 @@ impl FunctionTypist {
                     *ty,
                     "typed_arg: {typed_arg:?}, t: {ty:?}",
                 );
-                typed_arg
+                typed_arg.decay_if_array()
             })
             .collect();
         for i in 0..arg_types.len() {
@@ -282,7 +287,10 @@ impl FunctionTypist {
             Expr::GreaterEqual(_, _) => TypedExpr::GreaterEqual,
             _ => unreachable!(),
         };
-        constructor(Box::new(lhs), Box::new(rhs))
+        constructor(
+            Box::new(lhs.decay_if_array()),
+            Box::new(rhs.decay_if_array()),
+        )
     }
 
     fn type_arithmetic_operator(&self, lhs: &Expr, rhs: &Expr, expr: &Expr) -> TypedExpr {
@@ -295,6 +303,10 @@ impl FunctionTypist {
             Expr::Div(_, _) => TypedExpr::Div,
             _ => unreachable!(),
         };
-        constructor(lhs.get_type(), Box::new(lhs), Box::new(rhs))
+        constructor(
+            lhs.get_type(),
+            Box::new(lhs.decay_if_array()),
+            Box::new(rhs.decay_if_array()),
+        )
     }
 }

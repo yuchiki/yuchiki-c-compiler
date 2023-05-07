@@ -64,4 +64,33 @@ impl TypedExpr {
             | Self::Sizeof(_) => Type::IntTyp,
         }
     }
+
+    pub fn decay_if_array(&self) -> Self {
+        if let Type::Array(ty, _) = self.get_type() {
+            let ty_pointer = Type::Pointer(ty);
+            match self {
+                Self::Add(_, lhs, rhs) => Self::Add(ty_pointer, lhs.clone(), rhs.clone()),
+                Self::Sub(_, lhs, rhs) => Self::Sub(ty_pointer, lhs.clone(), rhs.clone()),
+                Self::Mul(_, lhs, rhs) => Self::Mul(ty_pointer, lhs.clone(), rhs.clone()),
+                Self::Div(_, lhs, rhs) => Self::Div(ty_pointer, lhs.clone(), rhs.clone()),
+                Self::Assign(_, lhs, rhs) => Self::Assign(ty_pointer, lhs.clone(), rhs.clone()),
+                Self::Variable(_, name) => Self::Variable(ty_pointer, name.clone()),
+                Self::FunctionCall(_, name, args) => {
+                    Self::FunctionCall(ty_pointer, name.clone(), args.clone())
+                }
+                Self::Address(_, expr) => Self::Address(ty_pointer, expr.clone()),
+                Self::Dereference(_, expr) => Self::Dereference(ty_pointer, expr.clone()),
+                Self::IntNum(_)
+                | Self::LessThan(_, _)
+                | Self::LessEqual(_, _)
+                | Self::Equal(_, _)
+                | Self::NotEqual(_, _)
+                | Self::GreaterThan(_, _)
+                | Self::GreaterEqual(_, _)
+                | Self::Sizeof(_) => self.clone(),
+            }
+        } else {
+            self.clone()
+        }
+    }
 }
