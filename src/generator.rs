@@ -313,7 +313,7 @@ impl<'a, W: Write> Function<'a, W> {
                 writeln!(self.write, "  push rax").unwrap();
             }
             TypedExpr::FunctionCall(_, name, args) => {
-                for (i, arg) in args.iter().enumerate() {
+                for arg in args {
                     self.gen_expr(arg);
                     self.rsp_offset += 8;
                 }
