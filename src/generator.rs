@@ -242,6 +242,11 @@ impl<'a, W: Write> Function<'a, W> {
     }
 
     fn gen_expr(&mut self, expr: &TypedExpr) {
+        if let Type::Array(_, _) = expr.get_type() {
+            self.gen_address_of_lvalue(expr);
+            return;
+        }
+
         match expr {
             TypedExpr::IntNum(n) => {
                 writeln!(self.write, "  push {n}").unwrap();
