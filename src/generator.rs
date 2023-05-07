@@ -77,6 +77,7 @@ pub struct Function<'a, W: Write> {
     // base_generator: &'a mut ProgramGenerator,
     fresh_counter: usize,
     write: &'a mut W,
+    rsp_offset: usize,
 }
 
 impl<'a, W: Write> Function<'a, W> {
@@ -98,6 +99,7 @@ impl<'a, W: Write> Function<'a, W> {
             body,
             fresh_counter,
             write,
+            rsp_offset: 8 + variables_offset,
         }
     }
 
@@ -139,7 +141,7 @@ impl<'a, W: Write> Function<'a, W> {
 
         let body = &self.body.clone(); // TODO: borrow checker　が通してくれない...
 
-        self.gen_statements(body, 8 + self.variables_offset);
+        self.gen_statements(body);
 
         writeln!(self.write, "  mov rsp, rbp").unwrap();
         writeln!(self.write, "  pop rbp").unwrap();
@@ -148,21 +150,21 @@ impl<'a, W: Write> Function<'a, W> {
         self.fresh_counter
     }
 
-    fn gen_statements(&mut self, statements: &Vec<TypedStatement>, rsp_offset: usize) {
+    fn gen_statements(&mut self, statements: &Vec<TypedStatement>) {
         for statement in statements {
-            self.gen_statement(statement, rsp_offset);
+            self.gen_statement(statement);
         }
     }
 
-    fn gen_statement(&mut self, statement: &TypedStatement, rsp_offset: usize) {
+    fn gen_statement(&mut self, statement: &TypedStatement) {
         match statement {
             TypedStatement::VariableDeclaration(_, _) => {}
             TypedStatement::Expr(expr) => {
-                self.gen_expr(expr, rsp_offset);
+                self.gen_expr(expr);
                 writeln!(self.write, "  pop rax").unwrap();
             }
             TypedStatement::Return(expr) => {
-                self.gen_expr(expr, rsp_offset);
+                self.gen_expr(expr);
                 writeln!(self.write, "  pop rax").unwrap();
                 writeln!(self.write, "  mov rsp, rbp").unwrap();
                 writeln!(self.write, "  pop rbp").unwrap();
@@ -171,29 +173,29 @@ impl<'a, W: Write> Function<'a, W> {
             TypedStatement::If(expr, then_statement) => {
                 let suffix = self.get_fresh_suffix();
 
-                self.gen_expr(expr, rsp_offset);
+                self.gen_expr(expr);
                 writeln!(self.write, "  pop rax").unwrap();
                 writeln!(self.write, "  cmp rax, 0").unwrap();
                 writeln!(self.write, "  je .Lend{suffix}").unwrap();
 
-                self.gen_statement(then_statement, rsp_offset);
+                self.gen_statement(then_statement);
 
                 writeln!(self.write, ".Lend{suffix}:").unwrap();
             }
             TypedStatement::IfElse(expr, then_statement, else_statement) => {
                 let suffix = self.get_fresh_suffix();
 
-                self.gen_expr(expr, rsp_offset);
+                self.gen_expr(expr);
                 writeln!(self.write, "  pop rax").unwrap();
                 writeln!(self.write, "  cmp rax, 0").unwrap();
                 writeln!(self.write, "  je .Lelse{suffix}").unwrap();
 
-                self.gen_statement(then_statement, rsp_offset);
+                self.gen_statement(then_statement);
 
                 writeln!(self.write, "  jmp .Lend{suffix}").unwrap();
                 writeln!(self.write, ".Lelse{suffix}:").unwrap();
 
-                self.gen_statement(else_statement, rsp_offset);
+                self.gen_statement(else_statement);
 
                 writeln!(self.write, ".Lend{suffix}:").unwrap();
             }
@@ -202,12 +204,12 @@ impl<'a, W: Write> Function<'a, W> {
 
                 writeln!(self.write, ".Lbegin{suffix}:").unwrap();
 
-                self.gen_expr(expr, rsp_offset);
+                self.gen_expr(expr);
                 writeln!(self.write, "  pop rax").unwrap();
                 writeln!(self.write, "  cmp rax, 0").unwrap();
                 writeln!(self.write, "  je .Lend{suffix}").unwrap();
 
-                self.gen_statement(statement, rsp_offset);
+                self.gen_statement(statement);
 
                 writeln!(self.write, "  jmp .Lbegin{suffix}").unwrap();
                 writeln!(self.write, ".Lend{suffix}:").unwrap();
@@ -215,70 +217,72 @@ impl<'a, W: Write> Function<'a, W> {
             TypedStatement::For(init, cond, update, body) => {
                 let suffix = self.get_fresh_suffix();
 
-                self.gen_expr(init, rsp_offset);
+                self.gen_expr(init);
                 writeln!(self.write, "  pop rax").unwrap();
 
                 writeln!(self.write, ".Lbegin{suffix}:").unwrap();
 
-                self.gen_expr(cond, rsp_offset);
+                self.gen_expr(cond);
                 writeln!(self.write, "  pop rax").unwrap();
                 writeln!(self.write, "  cmp rax, 0").unwrap();
                 writeln!(self.write, "  je .Lend{suffix}").unwrap();
 
-                self.gen_statement(body, rsp_offset);
+                self.gen_statement(body);
 
-                self.gen_expr(update, rsp_offset);
+                self.gen_expr(update);
                 writeln!(self.write, "  pop rax").unwrap();
 
                 writeln!(self.write, "  jmp .Lbegin{suffix}").unwrap();
                 writeln!(self.write, ".Lend{suffix}:").unwrap();
             }
             TypedStatement::Block(statements) => {
-                self.gen_statements(statements, rsp_offset);
+                self.gen_statements(statements);
             }
         }
     }
 
-    fn gen_expr(&mut self, expr: &TypedExpr, rsp_offset: usize) {
+    fn gen_expr(&mut self, expr: &TypedExpr) {
         match expr {
             TypedExpr::IntNum(n) => {
                 writeln!(self.write, "  push {n}").unwrap();
             }
             TypedExpr::Add(_, lhs, rhs) => {
-                self.gen_add_sub_operation(lhs, rhs, rsp_offset, "add");
+                self.gen_add_sub_operation(lhs, rhs, "add");
             }
 
             TypedExpr::Sub(_, lhs, rhs) => {
-                self.gen_add_sub_operation(lhs, rhs, rsp_offset, "sub");
+                self.gen_add_sub_operation(lhs, rhs, "sub");
             }
             TypedExpr::Mul(_, lhs, rhs) => {
-                self.gen_binary_operation(lhs, rhs, rsp_offset, &["  imul rax, rdi"]);
+                self.gen_binary_operation(lhs, rhs, &["  imul rax, rdi"]);
             }
 
             TypedExpr::Div(_, lhs, rhs) => {
-                self.gen_binary_operation(lhs, rhs, rsp_offset, &["  cqo", "idiv rdi"]);
+                self.gen_binary_operation(lhs, rhs, &["  cqo", "idiv rdi"]);
             }
             TypedExpr::LessThan(lhs, rhs) => {
-                self.gen_comparator(lhs, rhs, rsp_offset, "setl");
+                self.gen_comparator(lhs, rhs, "setl");
             }
             TypedExpr::LessEqual(lhs, rhs) => {
-                self.gen_comparator(lhs, rhs, rsp_offset, "setle");
+                self.gen_comparator(lhs, rhs, "setle");
             }
             TypedExpr::Equal(lhs, rhs) => {
-                self.gen_comparator(lhs, rhs, rsp_offset, "sete");
+                self.gen_comparator(lhs, rhs, "sete");
             }
             TypedExpr::NotEqual(lhs, rhs) => {
-                self.gen_comparator(lhs, rhs, rsp_offset, "setne");
+                self.gen_comparator(lhs, rhs, "setne");
             }
             TypedExpr::GreaterThan(lhs, rhs) => {
-                self.gen_comparator(lhs, rhs, rsp_offset, "setg");
+                self.gen_comparator(lhs, rhs, "setg");
             }
             TypedExpr::GreaterEqual(lhs, rhs) => {
-                self.gen_comparator(lhs, rhs, rsp_offset, "setge");
+                self.gen_comparator(lhs, rhs, "setge");
             }
             TypedExpr::Assign(_, lhs, rhs) => {
                 self.gen_lvalue(lhs);
-                self.gen_expr(rhs, rsp_offset + 8);
+                self.rsp_offset += 8;
+                self.gen_expr(rhs);
+                self.rsp_offset -= 8;
 
                 let di_register = match rhs.get_type().get_size() {
                     4 => "edi",
@@ -305,14 +309,17 @@ impl<'a, W: Write> Function<'a, W> {
             }
             TypedExpr::FunctionCall(_, name, args) => {
                 for (i, arg) in args.iter().enumerate() {
-                    self.gen_expr(arg, rsp_offset + i * 8);
+                    self.gen_expr(arg);
+                    self.rsp_offset += 8;
                 }
+
+                self.rsp_offset -= args.len() * 8;
 
                 for i in (0..args.len()).rev() {
                     writeln!(self.write, "  pop {}", SYSTEM_V_CALLER_SAVE_REGISTERS[i]).unwrap();
                 }
 
-                let misalignment = rsp_offset % 16;
+                let misalignment = self.rsp_offset % 16;
                 writeln!(self.write, "  sub rsp, {misalignment}").unwrap();
                 writeln!(self.write, "  call {name}").unwrap();
                 writeln!(self.write, "  add rsp, {misalignment}").unwrap();
@@ -322,13 +329,13 @@ impl<'a, W: Write> Function<'a, W> {
                 self.gen_lvalue(expr);
             }
             TypedExpr::Dereference(_, expr) => {
-                self.gen_expr(expr, rsp_offset);
+                self.gen_expr(expr);
                 writeln!(self.write, "  pop rax").unwrap();
                 writeln!(self.write, "  mov rax, [rax]").unwrap();
                 writeln!(self.write, "  push rax").unwrap();
             }
             TypedExpr::Sizeof(expr) => {
-                self.gen_expr(expr, rsp_offset);
+                self.gen_expr(expr);
                 writeln!(self.write, "  pop rax").unwrap();
                 writeln!(self.write, "  mov rax, {}", expr.get_type().get_size()).unwrap();
                 writeln!(self.write, "  push rax").unwrap();
@@ -336,13 +343,7 @@ impl<'a, W: Write> Function<'a, W> {
         }
     }
 
-    fn gen_add_sub_operation(
-        &mut self,
-        lhs: &TypedExpr,
-        rhs: &TypedExpr,
-        rsp_offset: usize,
-        op: &str,
-    ) {
+    fn gen_add_sub_operation(&mut self, lhs: &TypedExpr, rhs: &TypedExpr, op: &str) {
         match (lhs.get_type(), rhs.get_type()) {
             (Type::Pointer(_), Type::Pointer(_)) => {
                 panic!("pointer + pointer is not supported")
@@ -351,7 +352,6 @@ impl<'a, W: Write> Function<'a, W> {
                 self.gen_binary_operation(
                     lhs,
                     rhs,
-                    rsp_offset,
                     &["  imul rdi, 8", &format!("  {op} rax, rdi")],
                 );
             }
@@ -359,25 +359,20 @@ impl<'a, W: Write> Function<'a, W> {
                 self.gen_binary_operation(
                     lhs,
                     rhs,
-                    rsp_offset,
                     &["  imul rax, 8", &format!("  {op} rax, rdi")],
                 );
             }
             _ => {
-                self.gen_binary_operation(lhs, rhs, rsp_offset, &[&format!("  {op} rax, rdi")]);
+                self.gen_binary_operation(lhs, rhs, &[&format!("  {op} rax, rdi")]);
             }
         }
     }
 
-    fn gen_binary_operation(
-        &mut self,
-        lhs: &TypedExpr,
-        rhs: &TypedExpr,
-        rsp_offset: usize,
-        ops: &[&str],
-    ) {
-        self.gen_expr(lhs, rsp_offset);
-        self.gen_expr(rhs, rsp_offset + 8);
+    fn gen_binary_operation(&mut self, lhs: &TypedExpr, rhs: &TypedExpr, ops: &[&str]) {
+        self.gen_expr(lhs);
+        self.rsp_offset += 8;
+        self.gen_expr(rhs);
+        self.rsp_offset -= 8;
 
         writeln!(self.write, "  pop rdi").unwrap();
         writeln!(self.write, "  pop rax").unwrap();
@@ -389,11 +384,10 @@ impl<'a, W: Write> Function<'a, W> {
         writeln!(self.write, "  push rax").unwrap();
     }
 
-    fn gen_comparator(&mut self, lhs: &TypedExpr, rhs: &TypedExpr, rsp_offset: usize, op: &str) {
+    fn gen_comparator(&mut self, lhs: &TypedExpr, rhs: &TypedExpr, op: &str) {
         self.gen_binary_operation(
             lhs,
             rhs,
-            rsp_offset,
             &[
                 "  cmp rax, rdi",
                 format!("  {op} al").as_str(),
@@ -414,7 +408,7 @@ impl<'a, W: Write> Function<'a, W> {
                 writeln!(self.write, "  push rax").unwrap();
             }
             TypedExpr::Dereference(_, expr) => {
-                self.gen_lvalue(expr);
+                self.gen_expr(expr);
             }
             _ => todo!(),
         }
