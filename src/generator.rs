@@ -115,12 +115,11 @@ impl<'a, W: Write> Function<'a, W> {
         for (variable, ty) in local_variable_type_environment {
             if let hash_map::Entry::Vacant(e) = offset_map.entry(variable.clone()) {
                 e.insert(offset);
-                offset += ty.get_size();
+                offset += round_up_as_multiple_of_8(ty.get_size());
             }
         }
         (offset_map, offset)
     }
-
     fn gen(&mut self) -> usize {
         writeln!(&mut self.write, ".globl {}", self.name).unwrap();
         writeln!(self.write, "{}:", self.name).unwrap();
@@ -419,6 +418,14 @@ impl<'a, W: Write> Function<'a, W> {
             }
             _ => todo!(),
         }
+    }
+}
+
+pub const fn round_up_as_multiple_of_8(num: usize) -> usize {
+    if num % 8 == 0 {
+        num
+    } else {
+        num + 8 - (num % 8)
     }
 }
 

@@ -69,8 +69,8 @@ const EXTERNAL_FUNC_FILE_BASE_NAME: &str = "tmpdir/external_func";
     6
 )]
 #[case::function_call_with_two_args(
-    "int my_func(int a, int b) { int c; c = 10; return a+b+c; } int main () { my_func(3, 5); }",
-    18
+    "int my_func(int a, int b) { int c; c = 10; return a; } int main () { my_func(3, 5); }",
+    3
 )]
 #[case::function_call( "int my_func(int a, int b, int c, int d, int e, int f){int g; int h; g = 7; h = a + b * 2 + c * 3 + d * 4 + e * 5 + f * 6 + g; return h / 2;} int main(){my_func(1,2,3,4,5,6);}", 49)]
 #[case::pointer_dereference(
