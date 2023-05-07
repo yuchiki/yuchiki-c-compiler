@@ -279,7 +279,7 @@ impl<'a, W: Write> Function<'a, W> {
                 self.gen_comparator(lhs, rhs, "setge");
             }
             TypedExpr::Assign(_, lhs, rhs) => {
-                self.gen_lvalue(lhs);
+                self.gen_address_of_lvalue(lhs);
                 self.rsp_offset += 8;
                 self.gen_expr(rhs);
                 self.rsp_offset -= 8;
@@ -302,7 +302,7 @@ impl<'a, W: Write> Function<'a, W> {
                     _ => panic!("unexpected size"),
                 };
 
-                self.gen_lvalue(expr);
+                self.gen_address_of_lvalue(expr);
                 writeln!(self.write, "  pop rax").unwrap();
                 writeln!(self.write, "  mov {ax_register}, [rax]").unwrap();
                 writeln!(self.write, "  push rax").unwrap();
@@ -326,7 +326,7 @@ impl<'a, W: Write> Function<'a, W> {
                 writeln!(self.write, "  push rax").unwrap();
             }
             TypedExpr::Address(_, expr) => {
-                self.gen_lvalue(expr);
+                self.gen_address_of_lvalue(expr);
             }
             TypedExpr::Dereference(_, expr) => {
                 self.gen_expr(expr);
@@ -396,7 +396,7 @@ impl<'a, W: Write> Function<'a, W> {
         );
     }
 
-    fn gen_lvalue(&mut self, expr: &TypedExpr) {
+    fn gen_address_of_lvalue(&mut self, expr: &TypedExpr) {
         match expr {
             TypedExpr::Variable(_, name) => {
                 let error_message = format!("variable {name} not found");
