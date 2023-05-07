@@ -5,7 +5,7 @@ pub struct SourcePosition(pub usize);
 
 pub type PositionedToken = (Token, SourcePosition);
 
-static TOKEN_MAP: [(&str, Token); 18] = [
+static TOKEN_MAP: [(&str, Token); 20] = [
     ("+", Token::Plus),
     ("-", Token::Minus),
     ("*", Token::Asterisk),
@@ -14,6 +14,8 @@ static TOKEN_MAP: [(&str, Token); 18] = [
     (")", Token::RParen),
     ("{", Token::LBrace),
     ("}", Token::RBrace),
+    ("[", Token::LBracket),
+    ("]", Token::RBracket),
     (",", Token::Comma),
     ("==", Token::Equality),
     ("!=", Token::Inequality),
@@ -121,7 +123,7 @@ mod tests {
     #[test]
     fn test_tokenize() {
         let input =
-            "+ - * / ( ) { } , == != <= < >= > ; = & if else while for return 12345abcedef12345 int extern sizeof";
+            "+ - * / ( ) { } , == != <= < >= > ; = & if else while for return 12345abcedef12345 int extern sizeof []";
         let expected = vec![
             (Token::Plus, SourcePosition(0)),
             (Token::Minus, SourcePosition(2)),
@@ -154,6 +156,8 @@ mod tests {
             (Token::Int, SourcePosition(83)),
             (Token::Extern, SourcePosition(87)),
             (Token::Sizeof, SourcePosition(94)),
+            (Token::LBracket, SourcePosition(101)),
+            (Token::RBracket, SourcePosition(102)),
         ];
         assert_eq!(tokenize(&input.chars().collect::<Vec<char>>()), expected);
     }

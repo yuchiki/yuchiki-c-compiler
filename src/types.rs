@@ -1,15 +1,17 @@
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
-    IntType,
-    PointerType(Box<Type>),
+    IntTyp,
+    Pointer(Box<Type>),
+    Array(Box<Type>, usize),
 }
 
 impl Type {
     #[allow(dead_code)]
-    pub const fn get_size(&self) -> usize {
+    pub fn get_size(&self) -> usize {
         match self {
-            Self::PointerType(_) => 8,
-            Self::IntType => 4,
+            Self::Pointer(_) => 8,
+            Self::IntTyp => 4,
+            Self::Array(t, n) => t.get_size() * n,
         }
     }
 }

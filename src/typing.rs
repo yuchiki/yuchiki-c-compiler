@@ -204,7 +204,7 @@ impl FunctionTypist {
 
     fn type_dereference(&self, expr: &Expr) -> TypedExpr {
         let typed_expr = self.type_expr(expr);
-        if let Type::PointerType(ty) = typed_expr.get_type() {
+        if let Type::Pointer(ty) = typed_expr.get_type() {
             TypedExpr::Dereference(*ty, Box::new(typed_expr))
         } else {
             panic!("cannot dereference non-pointer type: {typed_expr:?}")
@@ -214,7 +214,7 @@ impl FunctionTypist {
     fn type_address(&self, expr: &Expr) -> TypedExpr {
         let typed_expr = self.type_expr(expr);
         TypedExpr::Address(
-            Type::PointerType(Box::new(typed_expr.get_type())),
+            Type::Pointer(Box::new(typed_expr.get_type())),
             Box::new(typed_expr),
         )
     }

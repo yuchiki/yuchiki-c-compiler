@@ -339,10 +339,10 @@ impl<'a, W: Write> Function<'a, W> {
         op: &str,
     ) {
         match (lhs.get_type(), rhs.get_type()) {
-            (Type::PointerType(_), Type::PointerType(_)) => {
+            (Type::Pointer(_), Type::Pointer(_)) => {
                 panic!("pointer + pointer is not supported")
             }
-            (Type::PointerType(_), _) => {
+            (Type::Pointer(_), _) => {
                 self.gen_binary_operation(
                     lhs,
                     rhs,
@@ -350,7 +350,7 @@ impl<'a, W: Write> Function<'a, W> {
                     &["  imul rdi, 8", &format!("  {op} rax, rdi")],
                 );
             }
-            (_, Type::PointerType(_)) => {
+            (_, Type::Pointer(_)) => {
                 self.gen_binary_operation(
                     lhs,
                     rhs,

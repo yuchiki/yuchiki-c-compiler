@@ -41,80 +41,84 @@ impl<'a> Parser<'a> {
     }
 
     pub fn munch_external_function_declaration(&mut self) -> TopLevel {
-        assert_eq!(self.tokens[0].0, Token::Extern);
+        assert_eq!(self.tokens[0].0, Token::Extern, "parse error");
         self.advance(1);
-        let Some(return_ty) = self.try_munch_type() else {
-                panic!("parse error at {:#?}, expected a type", self.tokens)
-        };
-        let [(Token::Identifier(name), _), (Token::LParen, _), ..] = self.tokens else {
+        let Some((name, return_ty)) = self.try_munch_variable_definition() else {
                 panic!("parse error at {:#?}, expected a function name", self.tokens)
-            };
+        };
 
-        self.advance(2);
-        let mut args = vec![];
+        assert_eq!(self.tokens[0].0, Token::LParen, "parse error");
+        self.advance(1);
+
+        let mut args: Vec<(String, Type)> = vec![];
         while self.tokens[0].0 != Token::RParen {
-            if let Some(ty) = self.try_munch_type() {
-                let (Token::Identifier(arg), _) = &self.tokens[0]
-                    else {
-                        panic!("parse error at {:#?}", self.tokens)
-                    };
-                self.advance(1);
-                args.push((arg.clone(), ty));
-
-                if self.tokens[0].0 == Token::RParen {
-                    break;
-                } else if self.tokens[0].0 == Token::Comma {
-                    self.advance(1);
-                } else {
+            let Some((arg, arg_ty)) = self.try_munch_variable_definition() else {
                     panic!("parse error at {:#?}", self.tokens)
-                }
+                };
+
+            if self.tokens[0].0 == Token::Comma {
+                self.advance(1);
+            } else if self.tokens[0].0 == Token::RParen {
             } else {
                 panic!("parse error at {:#?}", self.tokens)
             }
+
+            args.push((arg, arg_ty));
         }
 
         self.advance(1);
-        assert!(!(self.tokens[0].0 != Token::Semicolon), "parse error");
 
+        assert_eq!(self.tokens[0].0, Token::Semicolon, "parse error");
         self.advance(1);
-        TopLevel::ExternalFunctionDeclaration(name.clone(), args, return_ty)
+        TopLevel::ExternalFunctionDeclaration(name, args, return_ty)
+    }
+
+    pub fn try_munch_variable_definition(&mut self) -> Option<(String, Type)> {
+        let ty = self.try_munch_type()?;
+        let name = if let Token::Identifier(name) = &self.tokens[0].0 {
+            name.clone()
+        } else {
+            panic!("parse error");
+        };
+        self.advance(1);
+
+        if let [(Token::LBracket, _), (Token::Num(size), _), (Token::RBracket, _), ..] = self.tokens
+        {
+            self.advance(3);
+            #[allow(clippy::cast_sign_loss)]
+            Some((name, Type::Array(Box::new(ty), *size as usize)))
+        } else {
+            Some((name, ty))
+        }
     }
 
     pub fn munch_function_definition(&mut self) -> TopLevel {
-        let Some(return_ty) = self.try_munch_type() else {
-                panic!("parse error at {:#?}, expected a type", self.tokens)
-            };
-
-        let [(Token::Identifier(name), _), (Token::LParen, _), ..] = self.tokens else {
+        let Some((name, return_ty)) = self.try_munch_variable_definition() else {
                 panic!("parse error at {:#?}, expected a function name", self.tokens)
-            };
+        } ;
 
-        self.advance(2);
-        let mut args = vec![];
+        assert_eq!(self.tokens[0].0, Token::LParen, "parse error");
+        self.advance(1);
+
+        let mut args: Vec<(String, Type)> = vec![];
         while self.tokens[0].0 != Token::RParen {
-            if let Some(ty) = self.try_munch_type() {
-                let (Token::Identifier(arg), _) = &self.tokens[0]
-                    else {
-                        panic!("parse error at {:#?}", self.tokens)
-                    };
-                self.advance(1);
-                args.push((arg.clone(), ty));
-
-                if self.tokens[0].0 == Token::RParen {
-                    break;
-                } else if self.tokens[0].0 == Token::Comma {
-                    self.advance(1);
-                } else {
+            let Some((arg, arg_ty)) = self.try_munch_variable_definition() else {
                     panic!("parse error at {:#?}", self.tokens)
-                }
+                };
+
+            if self.tokens[0].0 == Token::Comma {
+                self.advance(1);
+            } else if self.tokens[0].0 == Token::RParen {
             } else {
                 panic!("parse error at {:#?}", self.tokens)
             }
+
+            args.push((arg, arg_ty));
         }
 
         self.advance(1);
 
-        assert!(!(self.tokens[0].0 != Token::LBrace), "parse error");
+        assert_eq!(self.tokens[0].0, Token::LBrace, "parse error");
 
         self.advance(1);
         let mut statements = vec![];
@@ -122,7 +126,7 @@ impl<'a> Parser<'a> {
             statements.push(self.munch_statement());
         }
         self.advance(1);
-        TopLevel::FunctionDefinition(name.clone(), args, return_ty, statements)
+        TopLevel::FunctionDefinition(name, args, return_ty, statements)
     }
 
     pub fn munch_statement(&mut self) -> Statement {
@@ -165,6 +169,16 @@ impl<'a> Parser<'a> {
             [(Token::Semicolon, _), ..] => {
                 self.advance(1);
                 Statement::VariableDeclaration(name, ty)
+            }
+            [(Token::LBracket, _), (Token::Num(size), _), ..] => {
+                self.advance(2);
+                let size = *size;
+                assert!(self.tokens[0].0 == Token::RBracket);
+                self.advance(1);
+                assert!(self.tokens[0].0 == Token::Semicolon);
+                self.advance(1);
+                #[allow(clippy::cast_sign_loss)]
+                Statement::VariableDeclaration(name, Type::Array(Box::new(ty), size as usize))
             }
             _ => panic!("セミコロンがない: {:?}", self.tokens[0].0),
         }
@@ -466,14 +480,14 @@ impl<'a> Parser<'a> {
         let mut ty = match self.tokens {
             [(Token::Int, _), ..] => {
                 self.advance(1);
-                Some(Type::IntType)
+                Some(Type::IntTyp)
             }
             _ => None,
         }?;
 
         while self.tokens[0].0 == Token::Asterisk {
             self.advance(1);
-            ty = Type::PointerType(Box::new(ty));
+            ty = Type::Pointer(Box::new(ty));
         }
 
         Some(ty)
@@ -760,7 +774,7 @@ mod tests {
             (Token::RBrace, SourcePosition(0)),
         ];
 
-        let mut parser = Parser::new(&tokens, "f(a, b) {}");
+        let mut parser = Parser::new(&tokens, "int f(int a, int b) {1;2;}");
         let top_level = parser.munch_top_level();
 
         assert_eq!(
@@ -768,10 +782,10 @@ mod tests {
             TopLevel::FunctionDefinition(
                 "f".to_string(),
                 vec![
-                    ("a".to_string(), Type::IntType),
-                    ("b".to_string(), Type::IntType)
+                    ("a".to_string(), Type::IntTyp),
+                    ("b".to_string(), Type::IntTyp)
                 ],
-                Type::IntType,
+                Type::IntTyp,
                 vec![Statement::Expr(Expr::Num(1)), Statement::Expr(Expr::Num(2))]
             )
         );

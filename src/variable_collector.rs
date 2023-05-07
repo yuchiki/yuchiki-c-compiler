@@ -54,8 +54,8 @@ mod tests {
     #[test]
     fn test_calculate_offset() {
         let params = vec![
-            ("a".to_string(), Type::PointerType(Box::new(Type::IntType))),
-            ("b".to_string(), Type::IntType),
+            ("a".to_string(), Type::Pointer(Box::new(Type::IntTyp))),
+            ("b".to_string(), Type::IntTyp),
         ];
         let statements = vec![
             Statement::Expr(Expr::Assign(
@@ -66,12 +66,12 @@ mod tests {
                 Box::new(Expr::Variable("b".to_string())),
                 Box::new(Expr::Num(2)),
             )),
-            Statement::VariableDeclaration("c".to_string(), Type::IntType),
+            Statement::VariableDeclaration("c".to_string(), Type::IntTyp),
         ];
         let offset_map = collect_variables(&params, &statements);
-        assert_eq!(offset_map["a"], Type::PointerType(Box::new(Type::IntType)));
-        assert_eq!(offset_map["b"], Type::IntType);
-        assert_eq!(offset_map["c"], Type::IntType);
+        assert_eq!(offset_map["a"], Type::Pointer(Box::new(Type::IntTyp)));
+        assert_eq!(offset_map["b"], Type::IntTyp);
+        assert_eq!(offset_map["c"], Type::IntTyp);
     }
 
     #[test]
@@ -81,9 +81,9 @@ mod tests {
                 Box::new(Expr::Variable("a".to_string())),
                 Box::new(Expr::Num(1)),
             )),
-            Statement::VariableDeclaration("b".to_string(), Type::IntType),
+            Statement::VariableDeclaration("b".to_string(), Type::IntTyp),
         ];
         let identifiers = collect_variables_in_statements(&statements);
-        assert_eq!(identifiers, vec![("b".to_string(), Type::IntType)]);
+        assert_eq!(identifiers, vec![("b".to_string(), Type::IntTyp)]);
     }
 }

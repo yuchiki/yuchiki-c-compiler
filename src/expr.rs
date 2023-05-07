@@ -61,7 +61,7 @@ impl TypedExpr {
             | Self::NotEqual(_, _)
             | Self::GreaterThan(_, _)
             | Self::GreaterEqual(_, _)
-            | Self::Sizeof(_) => Type::IntType,
+            | Self::Sizeof(_) => Type::IntTyp,
         }
     }
 }

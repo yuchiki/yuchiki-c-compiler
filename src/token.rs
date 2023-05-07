@@ -21,6 +21,8 @@ pub enum Token {
     Else,
     While,
     For,
+    LBracket,
+    RBracket,
     LBrace,
     RBrace,
     Comma,
