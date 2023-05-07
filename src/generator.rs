@@ -312,10 +312,10 @@ impl<'a, W: Write> Function<'a, W> {
                     writeln!(self.write, "  pop {}", SYSTEM_V_CALLER_SAVE_REGISTERS[i]).unwrap();
                 }
 
-                let miss_alignment = rsp_offset % 16;
-                writeln!(self.write, "  sub rsp, {miss_alignment}").unwrap();
+                let misalignment = rsp_offset % 16;
+                writeln!(self.write, "  sub rsp, {misalignment}").unwrap();
                 writeln!(self.write, "  call {name}").unwrap();
-                writeln!(self.write, "  add rsp, {miss_alignment}").unwrap();
+                writeln!(self.write, "  add rsp, {misalignment}").unwrap();
                 writeln!(self.write, "  push rax").unwrap();
             }
             TypedExpr::Address(_, expr) => {
