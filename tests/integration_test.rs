@@ -103,7 +103,7 @@ const EXTERNAL_FUNC_FILE_BASE_NAME: &str = "tmpdir/external_func";
     "int main() { int a[2]; *a = 5; *(a + 1) = 7; return *a; }",
     5
 )]
-
+#[case::array_access_sugar("int main() { int a[2]; a[0] = 1; a[1] = 2; return a[0] + a[1]; }", 3)]
 fn integration_test(#[case] input: &str, #[case] expected: i32) {
     let mut failure_count = 0;
     let status = loop {
