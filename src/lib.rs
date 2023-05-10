@@ -8,7 +8,6 @@ mod parser;
 mod statement;
 mod token;
 mod top_level;
-mod typed_expr;
 mod types;
 mod typing;
 mod variable_collector;
