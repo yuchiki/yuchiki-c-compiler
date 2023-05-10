@@ -284,7 +284,6 @@ impl<'a> Parser<'a> {
     pub fn munch_expr(&mut self) -> Expr {
         self.munch_assign()
     }
-
     pub fn munch_assign(&mut self) -> Expr {
         let mut expr = self.munch_equality();
 
@@ -394,21 +393,38 @@ impl<'a> Parser<'a> {
         match self.tokens {
             [(Token::Plus, _), ..] => {
                 self.advance(1);
-                self.munch_primary()
+                self.munch_array_access()
             }
             [(Token::Minus, _), ..] => {
                 self.advance(1);
-                Expr::Sub(Box::new(Expr::Num(0)), Box::new(self.munch_primary()))
+                Expr::Sub(Box::new(Expr::Num(0)), Box::new(self.munch_array_access()))
             }
             [(Token::Ampersand, _), ..] => {
                 self.advance(1);
-                Expr::Address(Box::new(self.munch_primary()))
+                Expr::Address(Box::new(self.munch_array_access()))
             }
             [(Token::Asterisk, _), ..] => {
                 self.advance(1);
-                Expr::Dereference(Box::new(self.munch_primary()))
+                Expr::Dereference(Box::new(self.munch_array_access()))
             }
-            _ => self.munch_primary(),
+            _ => self.munch_array_access(),
+        }
+    }
+
+    pub fn munch_array_access(&mut self) -> Expr {
+        let mut expr = self.munch_primary();
+
+        loop {
+            match self.tokens {
+                [(Token::LBracket, _), ..] => {
+                    self.advance(1);
+                    let index = self.munch_expr();
+                    assert!(self.tokens[0].0 == Token::RBracket);
+                    self.advance(1);
+                    expr = Expr::Dereference(Box::new(Expr::Add(Box::new(expr), Box::new(index))));
+                }
+                _ => return expr,
+            }
         }
     }
 
@@ -512,6 +528,9 @@ mod tests {
     fn test_munch_expr() {
         let tokens = vec![
             (Token::Identifier("b".to_string()), SourcePosition(45)),
+            (Token::LBracket, SourcePosition(0)),
+            (Token::Num(1), SourcePosition(0)),
+            (Token::RBracket, SourcePosition(2)),
             (Token::Assign, SourcePosition(47)),
             (Token::Plus, SourcePosition(0)),
             (Token::Num(1), SourcePosition(0)),
@@ -547,13 +566,16 @@ mod tests {
 
         let mut parser = Parser::new(
             &tokens,
-            "b = +1 + 2 * 3 / (4-5) < a > 7 >= &a <= 9 == 10 != sizeof(*b);",
+            "b[1] = +1 + 2 * 3 / (4-5) < a > 7 >= &a <= 9 == 10 != sizeof(*b);",
         );
         let expr = parser.munch_expr();
         assert_eq!(
             expr,
             Expr::Assign(
-                Box::new(Expr::Variable("b".to_string())),
+                Box::new(Expr::Dereference(Box::new(Expr::Add(
+                    Box::new(Expr::Variable("b".to_string())),
+                    Box::new(Expr::Num(1))
+                )))),
                 Box::new(Expr::NotEqual(
                     Box::new(Expr::Equal(
                         Box::new(Expr::LessEqual(
