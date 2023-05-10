@@ -9,8 +9,6 @@ FROM chef AS dependencies
 
 COPY --from=planner /app/recipe.json recipe.json
 
-RUN echo recipe.json
-RUN cat recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 
 COPY . .

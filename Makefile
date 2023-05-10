@@ -7,7 +7,7 @@ test-local:
 
 test-docker:
 	docker build --progress plain -t yuchiki-c-compiler-test -f tests/Dockerfile .
-	docker run --rm -it yuchiki-c-compiler-test
+	docker run yuchiki-c-compiler-test
 
 
 
